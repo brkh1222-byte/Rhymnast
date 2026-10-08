@@ -29,10 +29,15 @@ Open <http://localhost:8000>, then:
 1. **Start camera** (allow access) or **Load video…** to judge a recorded routine.
 2. Place the camera **side-on** to the gymnast, with her whole body in view. The "Legs" chip should say
    *full length* during splits.
-3. Press **Start judging** and perform. Elements appear on the right as they are detected.
+3. Press **Start judging** and perform. The panel on the video shows the pose being recognized,
+   a 1-second hold timer and the deduction so far; after each move a card shows its deduction
+   (e.g. "Attitude balance · E −0.30"). Elements also appear in the list on the right.
 4. Judges enter Artistry, extra D (apparatus, R, dance steps), extra E and penalties.
    Untick any AI call they disagree with.
-5. **Export audit log (JSON)** for the record.
+5. **Stop judging** opens the **deduction report**: every move with each deduction, the rulebook
+   sentence and page behind it, and the totals. Print or save it as PDF; export the audit log (JSON).
+6. **Teach poses** (right column): pick a pose, press **Record 3 s** and hold the correct pose
+   side-on, or add photos. The app recognizes poses by comparing with these examples (see below).
 
 The camera only works on `localhost` or HTTPS (browser rule). To use it from another device, serve
 `web/` over HTTPS (any static host works: it's plain HTML/JS/CSS).
@@ -57,6 +62,13 @@ Rule text, page numbers and how each value was checked: [`docs/rules.md`](docs/r
 
 **Not automated** (judges add these by hand): apparatus difficulties (DA), R elements, dance steps,
 apparatus handling faults, artistry, other body difficulties.
+
+## How it recognizes the poses (no model training)
+The pose model (MediaPipe, pretrained by Google) finds the body joints. Our code turns each frame into a
+**pose signature** (body angles that don't depend on size, distance or facing direction) and compares it
+with a **pose library** of labeled examples: ~1,000 shipped with the app plus the ones your team teaches.
+The nearest examples decide which pose it is. The **deduction** is then measured with the rulebook
+geometry, so it can always be explained with the Code of Points. Details: `docs/rules.md`.
 
 ## Known limits
 
@@ -84,6 +96,10 @@ web/
   js/elements/splitLeap.js   leap state machine + 180° rule
   js/elements/passe.js       passé balance (1 s hold, relevé) and pivot (rotation count)
   js/scoring.js              D / E / A / final, top-8, repetitions, judge overrides, audit export
+  js/report.js               end-of-routine deduction report (data)
+  js/elements/balances.js    the 3 focus balances: recognition + rulebook deductions
+  js/library/                pose signature, nearest-neighbour library, default examples
+  js/ui/                     video overlay, move cards, report view, Teach poses, library storage
   tests/                     unit tests (no dependencies)
   tools/image-check.html     measure angles on a single photo (for validating rules)
   tools/validate.html        check labeled photo folders against the app; export them as tests

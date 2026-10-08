@@ -88,9 +88,11 @@ test('back split, leg 170°, no help: 2.1005, DB 0.50, whole foot above head', (
 });
 
 test('back split, foot a little below head: deduction, still valid', () => {
-  const e = only(run(hold(40, () => backSplitBalance({ legDeg: 150 }))));
+  // Trunk leans 20° forward (builder default), so a 140° leg leaves the foot 10° short.
+  const e = only(run(hold(40, () => backSplitBalance({ legDeg: 140 }))));
   assert(e.dbValid, 'should be valid');
-  assert(e.measurements.footDevDeg > 0 && e.measurements.footDevDeg <= 20, `dev ${e.measurements.footDevDeg}`);
+  assertEqual(e.measurements.footDevDeg, 10);
+  assertEqual(e.penalties[0].value, 0.1);
   assert(e.penalties[0].reason.includes('Foot not fully above head'));
 });
 

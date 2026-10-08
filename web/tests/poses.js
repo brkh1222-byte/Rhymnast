@@ -138,10 +138,13 @@ export function frontSplitBalance({ splitDeg = 180, ...opts } = {}) {
   return balanceBody(opts, (lm, hip) => straightLeg(lm, 'L', hip, facing * splitDeg));
 }
 
-/** Back split balance: straight free leg backward, raised `legDeg` from straight down. */
-export function backSplitBalance({ legDeg = 170, ...opts } = {}) {
+/**
+ * Back split balance: straight free leg backward, raised `legDeg` from straight down.
+ * The trunk leans forward 20° by default, as in real back splits.
+ */
+export function backSplitBalance({ legDeg = 170, trunkTilt = 20, ...opts } = {}) {
   const facing = opts.facing ?? 1;
-  return balanceBody(opts, (lm, hip) => straightLeg(lm, 'L', hip, -facing * legDeg));
+  return balanceBody({ ...opts, trunkTilt }, (lm, hip) => straightLeg(lm, 'L', hip, -facing * legDeg));
 }
 
 /** Arabesque: straight free leg backward at the horizontal (not one of our three shapes). */

@@ -5,5 +5,7 @@ import './passe.test.js';
 import './scoring.test.js';
 import './balances.test.js';
 import './realBalances.test.js';
+import './library.test.js';
+import './report.test.js';
 
 export { runAll } from './harness.js';

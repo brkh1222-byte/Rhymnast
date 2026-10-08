@@ -5,10 +5,17 @@ import { LandmarkSmoother } from './oneEuro.js';
 import { legLengthRatios } from './geometry.js';
 import { SplitLeapDetector, legsFullLength } from './elements/splitLeap.js';
 import { PasseDetector } from './elements/passe.js';
-import { BalanceDetector } from './elements/balances.js';
+import { BalanceDetector, setPoseLibrary } from './elements/balances.js';
 import { Scoreboard } from './scoring.js';
 import { RULE_SOURCE } from './rules.js';
 import { drawSkeleton } from './draw.js';
+import { buildReport } from './report.js';
+import { currentLibrary } from './ui/libraryStore.js';
+import { renderHud, showMoveCard } from './ui/hud.js';
+import { renderReport } from './ui/reportView.js';
+import { TeachPanel } from './ui/teachPanel.js';
+import { describeMeasurements, el, formatTime, minus } from './ui/format.js';
+import { landmarksFromImage } from './tools/analyzeImage.js';
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -20,6 +27,14 @@ const ui = {
   final: $('final'), scoreD: $('score-d'), scoreE: $('score-e'), scoreA: $('score-a'),
   scoreDDetail: $('score-d-detail'), scoreEDetail: $('score-e-detail'),
   inArtistry: $('in-artistry'), inExtraD: $('in-extra-d'), inExtraE: $('in-extra-e'), inPenalties: $('in-penalties'),
+  focus: $('focus-mode'), running: $('running'), moveCards: $('move-cards'),
+  report: $('report'), reportBody: $('report-body'), btnReport: $('btn-report'),
+  btnPrint: $('btn-print'), btnReportClose: $('btn-report-close'),
+};
+const hud = {
+  root: $('hud'), poseRow: $('hud-pose-row'), pose: $('hud-pose'), match: $('hud-match'),
+  barRow: $('hud-bar-row'), bar: $('hud-bar'), barLabel: $('hud-bar-label'),
+  measure: $('hud-measure'), deduction: $('hud-deduction'), hint: $('hud-hint'),
 };
 const ctx = ui.canvas.getContext('2d');
 
@@ -33,19 +48,46 @@ const state = {
   fpsFrames: 0,
   fpsSince: performance.now(),
   fileName: null,
+  stoppedAt: null, // when judging last stopped (for the report's routine length)
 };
+
+// Recognize poses with the library: shipped examples + the ones your team taught.
+setPoseLibrary(currentLibrary());
 
 const smoother = new LandmarkSmoother();
 const scoreboard = new Scoreboard();
 const onEvent = (event) => {
   if (!state.judging) return;
   scoreboard.add({ ...event, routineMs: Math.max(0, event.t - state.routineStartMs) });
+  showMoveCard(ui.moveCards, event);
   renderEvents();
   renderScores();
 };
-const leap = new SplitLeapDetector(onEvent);
-const passe = new PasseDetector(onEvent);
+// In focus mode only the 3 balances count; leap and passé still run (the leap detector also
+// tells the balance detector when she is in the air).
+const onOtherEvent = (event) => {
+  if (!ui.focus.checked) onEvent(event);
+};
+const leap = new SplitLeapDetector(onOtherEvent);
+const passe = new PasseDetector(onOtherEvent);
 const balance = new BalanceDetector(onEvent);
+
+const teachPanel = new TeachPanel({
+  pose: $('teach-pose'), record: $('btn-record'), photos: $('teach-photos'), counts: $('teach-counts'),
+  exportBtn: $('btn-teach-export'), importInput: $('teach-import'), reset: $('btn-teach-reset'),
+  status: $('teach-status'),
+}, {
+  canRecord: () => state.source !== null && !state.judging,
+  landmarksFromPhoto: async (file) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await img.decode();
+    const lm = await landmarksFromImage(img);
+    URL.revokeObjectURL(img.src);
+    return lm;
+  },
+  download: (name, text) => download(name, text, 'application/json'),
+});
 
 // ---------- Model ----------
 
@@ -161,6 +203,8 @@ function tick() {
 
   drawSkeleton(ctx, lm, legColor());
   renderLive(lm);
+  const teachMessage = teachPanel.capture(lm, leap.live.airborne);
+  renderHud(hud, balance.live, { message: teachMessage });
   countFps();
 }
 
@@ -185,21 +229,35 @@ function countFps() {
 // ---------- Judging controls ----------
 
 function setJudging(on) {
-  if (!on && state.judging) {
+  const stopping = !on && state.judging;
+  if (stopping) {
     passe.flush(); // judge a balance still being held
     balance.flush();
+    state.stoppedAt = currentTimeMs();
   }
   state.judging = on;
+  if (on) ui.report.hidden = true;
   if (on && state.source === 'camera' && scoreboard.events.length === 0) {
     state.routineStartMs = performance.now();
   }
   ui.btnJudge.textContent = on ? 'Stop judging' : 'Start judging';
   ui.btnJudge.classList.toggle('active', on);
   ui.badge.hidden = !on;
+  if (stopping) openReport();
+}
+
+function openReport({ scroll = true } = {}) {
+  const end = state.stoppedAt ?? currentTimeMs();
+  const report = buildReport(scoreboard, judgeInputs(), { durationMs: Math.max(0, end - state.routineStartMs) });
+  renderReport(ui.reportBody, report);
+  ui.report.hidden = false;
+  if (scroll) ui.report.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function newRoutine() {
   scoreboard.reset();
+  ui.report.hidden = true;
+  ui.moveCards.replaceChildren();
   state.routineStartMs = state.source === 'camera' ? performance.now() : 0;
   resetTracking();
   renderEvents();
@@ -267,6 +325,11 @@ function renderScores() {
   const b = r.breakdown;
   ui.scoreDDetail.textContent = `AI ${b.autoD.toFixed(2)}${b.extraD ? ` + ${b.extraD.toFixed(2)}` : ''}`;
   ui.scoreEDetail.textContent = `AI −${b.autoE.toFixed(2)}${b.extraE ? ` − ${b.extraE.toFixed(2)}` : ''}`;
+  const judged = scoreboard.events.filter((e) => !e.rejected);
+  const clean = judged.filter((e) => e.penalties.length === 0).length;
+  ui.running.textContent = judged.length === 0
+    ? 'No moves judged yet.'
+    : `Deductions so far: ${minus(b.autoE)} · ${judged.length} move${judged.length === 1 ? '' : 's'} (${clean} clean)`;
   return r;
 }
 
@@ -293,13 +356,15 @@ function renderEvents() {
 
     const head = el('div', 'event-head');
     head.append(el('span', 'event-title', e.element), el('span', 'event-time', formatTime(e.routineMs)));
+    const total = e.penalties.reduce((sum, p) => sum + p.value, 0);
+    head.append(el('span', `event-total ${total === 0 ? 'good' : 'bad'}`, minus(total)));
     li.append(head);
 
     const [label, tone] = STATUS_LABEL[status.get(e.id)] ?? ['', 'muted'];
     const dbLine = el('div');
     dbLine.append(
       el('span', `tag ${tone}`, `DB ${e.dbValue.toFixed(2)} · ${label}`),
-      el('span', 'event-meta', `  ${e.code} · ${describe(e.measurements)} · confidence ${e.confidence}`),
+      el('span', 'event-meta', `  ${e.code} · ${describeMeasurements(e.measurements)} · confidence ${e.confidence}`),
     );
     li.append(dbLine);
 
@@ -322,33 +387,6 @@ function renderEvents() {
   }
 }
 
-function describe(m) {
-  const parts = [];
-  if (m.peakSplitDeg != null) parts.push(`split ${m.peakSplitDeg}°`);
-  if (m.thighDeg != null) parts.push(`thigh ${m.thighDeg}°`);
-  if (m.splitDevDeg != null) parts.push(m.splitDevDeg ? `split ${m.splitDevDeg}° short of 180°` : 'split 180°');
-  if (m.footDevDeg != null) parts.push(m.footDevDeg ? `foot ${m.footDevDeg}° below head height` : 'whole foot above head');
-  if (m.thighDevDeg != null) parts.push(m.thighDevDeg ? `thigh ${m.thighDevDeg}° below horizontal` : 'thigh horizontal');
-  if (m.trunkDevDeg != null) parts.push(`trunk ${m.trunkDevDeg}° from vertical`);
-  if (m.rotations != null) parts.push(`${m.rotations} turn${m.rotations > 1 ? 's' : ''}`);
-  if (m.holdMs != null && m.rotations == null) parts.push(`held ${(m.holdMs / 1000).toFixed(1)} s`);
-  if (m.relevePct != null) parts.push(`relevé ${m.relevePct}%`);
-  if (m.flightMs != null) parts.push(`flight ${m.flightMs} ms`);
-  return parts.join(', ');
-}
-
-function formatTime(ms) {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${Math.floor((ms % 1000) / 100)}`;
-}
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
-
 function exportAudit() {
   const audit = scoreboard.toAudit(judgeInputs(), {
     app: 'Rhymnast judging assistant',
@@ -356,10 +394,13 @@ function exportAudit() {
     source: state.source === 'file' ? `file: ${state.fileName}` : state.source,
     poseModel: `MediaPipe Pose Landmarker (${state.trackerVariant}, ${state.tracker?.delegate})`,
   });
-  const blob = new Blob([JSON.stringify(audit, null, 2)], { type: 'application/json' });
+  download(`rhymnast-audit-${new Date().toISOString().replace(/[:.]/g, '-')}.json`, JSON.stringify(audit, null, 2), 'application/json');
+}
+
+function download(name, content, type) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `rhymnast-audit-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -375,11 +416,17 @@ ui.fileInput.addEventListener('change', () => {
 ui.btnJudge.addEventListener('click', () => setJudging(!state.judging));
 ui.btnReset.addEventListener('click', newRoutine);
 ui.btnExport.addEventListener('click', exportAudit);
+ui.btnReport.addEventListener('click', () => openReport());
+ui.btnReportClose.addEventListener('click', () => { ui.report.hidden = true; });
+ui.btnPrint.addEventListener('click', () => window.print());
 ui.modelSelect.addEventListener('change', async () => {
   if (state.source) await ensureTracker();
 });
 for (const input of [ui.inArtistry, ui.inExtraD, ui.inExtraE, ui.inPenalties]) {
-  input.addEventListener('input', renderScores);
+  input.addEventListener('input', () => {
+    renderScores();
+    if (!ui.report.hidden) openReport({ scroll: false }); // keep an open report in step with the judges' inputs
+  });
 }
 ui.video.addEventListener('seeked', resetTracking); // jumping in a clip breaks motion tracking
 ui.video.addEventListener('ended', () => setJudging(false));

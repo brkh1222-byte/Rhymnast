@@ -176,6 +176,16 @@ export function legElevation(hip, point) {
   return Math.abs(signedAngle({ x: 0, y: 1 }, sub(point, hip)));
 }
 
+/**
+ * Signed trunk lean in degrees: positive = shoulders toward +x of the image, negative = toward -x.
+ * Multiply by facingSign() to get "forward" (+) or "backward" (-) lean.
+ */
+export function trunkLeanX(lm) {
+  const hips = mid(lm[LM.L_HIP], lm[LM.R_HIP]);
+  const shoulders = mid(lm[LM.L_SHOULDER], lm[LM.R_SHOULDER]);
+  return signedAngle({ x: 0, y: -1 }, sub(shoulders, hips));
+}
+
 /** Trunk lean from vertical in degrees (mid-hip -> mid-shoulder vs straight up). 0 = upright. */
 export function trunkTilt(lm) {
   const hips = mid(lm[LM.L_HIP], lm[LM.R_HIP]);

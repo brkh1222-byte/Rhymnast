@@ -62,6 +62,21 @@ Shapes held under 0.3 s are treated as passing movements, not balance attempts.
 **Measured as:** rotations counted from the body's apparent width (wide when facing toward/away
 from the camera, narrow when side-on; each change ≈ 90°). Accuracy about ±45°.
 
+## How the three balances are recognized (pose library)
+Recognizing WHICH pose it is and measuring HOW FAR it is from the rulebook are separate steps.
+- **Which pose:** every frame becomes a pose signature (10 numbers: split angle, free knee, thigh
+  height, leg height, signed trunk lean, leg in front or behind, hand on the leg, foot height vs hip
+  and head, leg raised). It is compared with the pose library (`web/js/library/`): the nearest 7
+  examples vote. Too far from every example, or "Not one of these" wins → no pose.
+- **The library** = ~1,000 shipped examples (`web/js/library/defaultLibrary.js`, built by
+  `web/tests/build-library.sh` from synthetic poses over the range judges see + real photos) plus the
+  examples your team teaches in the app ("Teach poses": record 3 s or add photos). Taught examples stay
+  in the browser; export/import shares them.
+- **How far:** always the rulebook geometry below (degrees per body segment → #2.5 bands), so every
+  deduction is explained by the Code of Points, never by the library.
+- Front vs back split with the leg near vertical: decided by the trunk (front splits stay upright or
+  lean back; back splits lean forward), checked on competition photos.
+
 ## Balances: shared rules ✅
 - On the foot: "Defined and clearly fixed shape" and "Stop position fixed in the shape for a minimum
   of 1 second" (#10.1.2, p. 82) ✅

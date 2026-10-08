@@ -316,3 +316,185 @@ h2::before { content: ""; width: 22px; height: 1px; background: var(--gold); }
   .strip div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
   .inputs { grid-template-columns: 1fr; }
 }
+
+/* ---------- Live overlay on the video ---------- */
+.hud {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: min(300px, calc(100% - 28px));
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 2px solid var(--gold);
+  box-shadow: 0 8px 30px rgba(22, 21, 20, 0.12);
+}
+.hud-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.hud-pose { font: 400 22px/1.1 var(--serif); }
+.hud-match { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.hud-hold { display: grid; gap: 4px; }
+.hud-bar {
+  --held: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold) calc(var(--held) * 100%), var(--line) 0);
+}
+.hud-hold small { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+.hud-measure { font-size: 13px; color: var(--ink); }
+.hud-deduction { font: 400 18px/1 var(--serif); }
+.hud-deduction.good { color: var(--good); }
+.hud-deduction.warn { color: var(--warn); }
+.hud-deduction.bad { color: var(--bad); }
+.hud-hint { font-size: 14px; color: var(--ink); }
+
+/* ---------- Card after each judged move ---------- */
+.move-cards {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: grid;
+  gap: 8px;
+  width: min(320px, calc(100% - 28px));
+  pointer-events: none;
+}
+.move-card {
+  background: var(--paper);
+  padding: 12px 14px;
+  border-left: 3px solid var(--warn);
+  box-shadow: 0 8px 30px rgba(22, 21, 20, 0.14);
+  display: grid;
+  gap: 3px;
+  animation: card-in 0.35s ease-out;
+  transition: opacity 0.6s, transform 0.6s;
+}
+.move-card.clean { border-left-color: var(--good); }
+.move-card.heavy { border-left-color: var(--bad); }
+.move-card.leaving { opacity: 0; transform: translateY(6px); }
+.move-title { font: 400 18px/1.15 var(--serif); }
+.move-score { font: 500 15px/1.2 var(--sans); }
+.move-card.clean .move-score { color: var(--good); }
+.move-card:not(.clean) .move-score { color: var(--bad); }
+.move-meta, .move-reason { font-size: 12px; color: var(--muted); }
+@keyframes card-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .move-card { animation: none; transition: none; }
+}
+
+/* ---------- Running total, toggle, links ---------- */
+.running {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.toggle input { accent-color: var(--ink); }
+.links { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+.link-label {
+  font: 400 12px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--gold);
+  padding-bottom: 4px;
+  cursor: pointer;
+}
+.event-total { font-size: 13px; font-variant-numeric: tabular-nums; }
+.event-total.good { color: var(--good); }
+.event-total.bad { color: var(--bad); }
+
+/* ---------- Teach poses ---------- */
+.teach summary { cursor: pointer; list-style: none; }
+.teach summary::-webkit-details-marker { display: none; }
+.teach summary h2::after { content: "+"; margin-left: auto; color: var(--muted); font-size: 14px; }
+.teach[open] summary h2::after { content: "–"; }
+.teach-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+.teach-row .select { margin-left: 0; }
+.quiet-button { border-color: var(--line); }
+.teach-counts { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.teach-counts li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.teach-counts b { font: 400 18px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+.teach-counts small { grid-column: 1 / -1; color: var(--gold); font-size: 11px; }
+
+/* ---------- Deduction report ---------- */
+.report {
+  max-width: 1100px;
+  margin: 8px auto 48px;
+  padding: 36px var(--gutter) 40px;
+  border-top: 1px solid var(--ink);
+}
+.report-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+.report-title {
+  font: 400 clamp(30px, 4vw, 44px)/1.05 var(--serif);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  margin: 8px 0 0;
+}
+.report-title::before { content: none; }
+.report-actions { display: flex; gap: 10px; }
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.report-tile { display: grid; gap: 8px; padding: 18px 14px; border-left: 1px solid var(--line); }
+.report-tile:first-child { border-left: 0; padding-left: 0; }
+.report-tile b { font: 400 34px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+.report-tile:first-child b { color: var(--bad); }
+.report-tile small { color: var(--muted); font-size: 12px; }
+.report-empty { font: italic 400 20px/1.4 var(--serif); margin: 24px 0; max-width: 60ch; }
+.report-moves { list-style: none; margin: 24px 0 0; padding: 0; }
+.report-move { display: grid; gap: 8px; padding: 22px 0; border-bottom: 1px solid var(--line); break-inside: avoid; }
+.report-move.rejected { opacity: 0.5; }
+.report-move-head { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 14px; }
+.report-move-n { font: 400 12px var(--sans); letter-spacing: 0.14em; color: var(--gold); }
+.report-move-title { font: 400 24px/1.15 var(--serif); }
+.report-move-total { font: 400 24px/1 var(--serif); font-variant-numeric: lining-nums tabular-nums; }
+.report-move-total.good { color: var(--good); }
+.report-move-total.bad { color: var(--bad); }
+.report-move-meta, .report-measured { font-size: 13px; color: var(--muted); }
+.report-requirement { font-size: 13px; }
+.report-clean { font-size: 14px; color: var(--good); }
+.report-deduction {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 4px 14px;
+  padding-top: 8px;
+}
+.report-deduction-value { font: 500 15px var(--sans); color: var(--bad); font-variant-numeric: tabular-nums; }
+.report-deduction-reason { font-size: 15px; }
+.report-rule {
+  grid-column: 2;
+  margin: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--gold);
+  font: italic 400 15px/1.45 var(--serif);
+  color: var(--muted);
+  max-width: 75ch;
+}
+.report-note { font-size: 12px; color: var(--warn); }
+.report-foot { margin: 22px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
+
+@media (max-width: 760px) {
+  .report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-tile:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+  .report-tile:nth-child(even) { border-left: 0; padding-left: 0; }
+  .report-tile:nth-child(odd):not(:first-child) { border-left: 1px solid var(--line); padding-left: 14px; }
+  .report-deduction { grid-template-columns: 1fr; }
+  .report-rule { grid-column: 1; }
+}
+
+/* Print: only the report. */
+@media print {
+  body > *:not(.report) { display: none !important; }
+  .report { display: block !important; border: 0; margin: 0; padding: 0; max-width: none; }
+  .report-actions { display: none; }
+}

@@ -26,6 +26,11 @@
   <script type="module">
     import { getImageTracker, landmarksFromImage, analyzeLandmarks } from '../js/tools/analyzeImage.js';
     import { drawSkeleton } from '../js/draw.js';
+    import { setPoseLibrary } from '../js/elements/balances.js';
+    import { currentLibrary } from '../js/ui/libraryStore.js';
+
+    // Same recognition as the app: default library + poses taught in this browser.
+    setPoseLibrary(currentLibrary());
 
     const out = document.getElementById('out');
     const img = document.getElementById('img');

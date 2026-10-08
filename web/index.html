@@ -36,6 +36,7 @@
         </label>
         <button id="btn-judge" disabled>Start judging</button>
         <button id="btn-reset" class="quiet">New routine</button>
+        <label class="toggle" for="focus-mode"><input id="focus-mode" type="checkbox" checked> Only the 3 balances</label>
         <label class="select">
           <span class="label">Model</span>
           <select id="model-select">
@@ -53,6 +54,17 @@
           <small>Film the gymnast side-on, whole body in frame.</small>
         </div>
         <div class="judging-badge" id="judging-badge" hidden><i></i>Judging</div>
+
+        <!-- Live overlay: what is recognized right now and what it would cost. -->
+        <div class="hud" id="hud" hidden aria-live="polite">
+          <div class="hud-row" id="hud-pose-row"><b class="hud-pose" id="hud-pose"></b><span class="hud-match" id="hud-match"></span></div>
+          <div class="hud-hold" id="hud-bar-row"><span class="hud-bar" id="hud-bar"></span><small id="hud-bar-label"></small></div>
+          <div class="hud-measure" id="hud-measure"></div>
+          <div class="hud-deduction" id="hud-deduction"></div>
+          <div class="hud-hint" id="hud-hint"></div>
+        </div>
+        <!-- A card for every judged move. -->
+        <div class="move-cards" id="move-cards" aria-live="polite"></div>
       </div>
 
       <dl class="strip">
@@ -65,12 +77,12 @@
       </dl>
 
       <p class="note">
-        Balances recognised: front split with help (2.303), back split without help with the
-        whole foot above the head (2.1005) and attitude (2.1202), plus passé balance, passé pivot
-        and split leap. Code of Points shape deviations per body segment (≤10° −0.10, 11–20° −0.30,
+        Judged: front split with help (2.303), back split without help with the whole foot above the
+        head (2.1005) and attitude (2.1202). Untick "Only the 3 balances" to also judge passé and the
+        split leap. Code of Points shape deviations per body segment (≤10° −0.10, 11–20° −0.30,
         &gt;20° −0.50 and the difficulty is not valid), the one-second hold (−0.30) and relevé
-        (flat foot −0.10). Apparatus difficulties, dance steps, R elements and apparatus faults
-        are entered by the judges.
+        (flat foot −0.10). Apparatus difficulties, dance steps and apparatus faults are entered by
+        the judges. Stop judging to see the deduction report.
       </p>
     </section>
 
@@ -80,6 +92,7 @@
         <div class="score"><span class="label">E · Execution</span><b id="score-e">10.00</b><small id="score-e-detail">AI −0.00</small></div>
         <div class="score"><span class="label">A · Artistry</span><b id="score-a">0.00</b><small>judges</small></div>
       </section>
+      <p class="running" id="running">No moves judged yet.</p>
 
       <section class="panel">
         <h2>Judge panel</h2>
@@ -91,7 +104,10 @@
         </div>
         <p class="hint">Extra D covers apparatus, R and dance steps. Untick an element to reject the AI's call.
           Final = D + A + E − penalties.</p>
-        <button id="btn-export" class="link">Export audit log →</button>
+        <div class="links">
+          <button id="btn-report" class="link">View report →</button>
+          <button id="btn-export" class="link">Export audit log →</button>
+        </div>
       </section>
 
       <section class="panel">
@@ -100,8 +116,44 @@
           <li class="empty">No elements yet. Press <b>Start judging</b>, then perform.</li>
         </ol>
       </section>
+
+      <section class="panel">
+        <details class="teach" id="teach">
+          <summary><h2>Teach poses</h2></summary>
+          <p class="hint">Show the app correct examples so it recognizes your gymnasts better. Pick the
+            pose, press Record, and hold the correct pose side-on for 3 seconds. Teach "Not one of these"
+            with poses it should ignore. Deductions still follow the rulebook.</p>
+          <div class="teach-row">
+            <label class="select" for="teach-pose"><span class="label">Pose</span><select id="teach-pose"></select></label>
+            <button id="btn-record">Record 3 s</button>
+            <label class="button quiet-button" for="teach-photos">Add photos<input id="teach-photos" type="file" accept="image/*" multiple hidden></label>
+          </div>
+          <ul class="teach-counts" id="teach-counts"></ul>
+          <p class="note" id="teach-status"></p>
+          <div class="links">
+            <button id="btn-teach-export" class="link">Export taught poses →</button>
+            <label class="link-label" for="teach-import">Import →<input id="teach-import" type="file" accept="application/json,.json" hidden></label>
+            <button id="btn-teach-reset" class="link">Remove taught poses</button>
+          </div>
+        </details>
+      </section>
     </aside>
   </main>
+
+  <!-- Deduction report: opens when judging stops. -->
+  <section class="report" id="report" hidden aria-labelledby="report-title">
+    <div class="report-head">
+      <div>
+        <p class="eyebrow">Rhymnast · Deduction report</p>
+        <h2 class="report-title" id="report-title">Routine report</h2>
+      </div>
+      <div class="report-actions">
+        <button id="btn-print">Print / save PDF</button>
+        <button id="btn-report-close" class="quiet">Close</button>
+      </div>
+    </div>
+    <div id="report-body"></div>
+  </section>
 
   <footer class="foot">
     Decision support for judges, not a replacement. Rules from the FIG Rhythmic Gymnastics Code of

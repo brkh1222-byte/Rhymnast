@@ -2,77 +2,80 @@
 //   - front split, with or without help             (row 3: "Split is required")
 //   - back split without help, trunk upright         (row 10: "whole foot above the head is required")
 //   - attitude                                       (row 12: thigh horizontal, body vertical)
-// Out of scope and deliberately NOT scored, because in 2D they look like the shapes above:
-// back split with help, front split with the trunk bent back, ring balances (checked on
-// competition photos, see docs/validation.md).
 //
-// Every frame we decide which shape (if any) the gymnast is in. While the same shape is held we
-// collect measurements; when she leaves it, the hold is judged once:
-//   shape deviations per body segment (#2.5), held < 1 s (#10.2.2), flat foot (#10.3).
+// Two separate questions per frame:
+//   1. WHICH pose is this?  Answered by the pose library (library/recognizer.js): the frame's pose
+//      signature is compared with many examples of the correct poses and of other poses.
+//      If the library doesn't know enough examples yet, fixed rule thresholds are used instead.
+//   2. HOW FAR from the rulebook shape?  Always measured with rulebook geometry (degrees per body
+//      segment), so every deduction can be explained with the Code of Points.
 //
-// "Help" = a hand holding the free leg. We call it help when a wrist or index finger is close
-// to the free leg's shin or foot.
+// While the same shape is held we collect measurements; when she leaves it, the hold is judged
+// once: shape deviations per body segment (#2.5), held < 1 s (#10.2.2), flat foot (#10.3).
 //
-// Single 2D camera: film side-on. Split angles are only trusted when both legs look full
-// length (same check as the split leap).
+// Out of scope and not scored (they look like our shapes in 2D): back split with help, front
+// split with the trunk bent back, ring balances. Film side-on.
 
-import {
-  LM, LEG_POINTS, clamp, dist, distToSegment, facingSign, headTopY, isOnReleve, jointAngle,
-  legElevation, legLengthRatios, legPoints, mid, minVisibility, splitAngle, thighElevation,
-  toDeg, torsoLength, trunkTilt,
-} from '../geometry.js';
+import { LEG_POINTS, minVisibility } from '../geometry.js';
 import { BALANCES, BALANCE_RULES, deviationBand, round2 } from '../rules.js';
-import { legsFullLength } from './splitLeap.js';
+import { BALANCE_SETTINGS, balanceFrame } from './balanceFrame.js';
+import { poseSignature } from '../library/signature.js';
 
-export const BALANCE_SETTINGS = {
-  minVisibility: 0.5,
-  minSplitToRecognize: 135, // below this it's not a split attempt at all
-  straightKneeDeg: 150, // free knee at least this straight for split shapes
-  attitudeKneeMin: 60, // attitude free knee is bent between these angles
-  attitudeKneeMax: 140,
-  minAttitudeThighDeg: 55, // thigh raised at least this much (90 = horizontal)
-  minBackLegElevation: 120, // back split: leg at least 30° above horizontal (not an arabesque)
-  maxUprightTrunkTilt: 60, // more lean = "trunk forward" balance (row 11), not detected
-  maxAttitudeTrunkTilt: 45, // more lean = another element (e.g. penché), not an attitude
-  helpDistance: 0.3, // hand within 0.3 torso lengths of the free shin/foot = help
-  releveHeelLift: 0.12,
-  releveMinShare: 0.6,
-  gapToleranceMs: 150, // brief tracking glitches don't end the hold
-  minBalanceMs: 300, // shorter = passing movement or a swing/kick, not a balance attempt
-};
+export { BALANCE_SETTINGS } from './balanceFrame.js';
 
 // How each recognized shape maps to the rulebook.
-const SHAPES = {
-  frontSplitHelp: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withHelp, label: 'front split' },
-  frontSplit: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withoutHelp, label: 'front split' },
-  backSplitFootAboveHead: { rule: BALANCES.BACK_SPLIT, variant: BALANCES.BACK_SPLIT.footAboveHead, label: 'back split' },
-  attitude: { rule: BALANCES.ATTITUDE, variant: BALANCES.ATTITUDE.plain, label: 'attitude' },
+export const SHAPES = {
+  frontSplitHelp: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withHelp, label: 'Front split · help' },
+  frontSplit: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withoutHelp, label: 'Front split' },
+  backSplitFootAboveHead: { rule: BALANCES.BACK_SPLIT, variant: BALANCES.BACK_SPLIT.footAboveHead, label: 'Back split' },
+  attitude: { rule: BALANCES.ATTITUDE, variant: BALANCES.ATTITUDE.plain, label: 'Attitude' },
 };
+const FOCUS_POSES = Object.keys(SHAPES);
+
+// The pose library used for recognition (set by the app; tests pass their own).
+let activeLibrary = null;
+export function setPoseLibrary(library) {
+  activeLibrary = library;
+}
+export function getPoseLibrary() {
+  return activeLibrary;
+}
+
+/** Does this library know every pose (and 'none') well enough to decide on its own? */
+export function libraryIsReady(library) {
+  return Boolean(library) && [...FOCUS_POSES, 'none'].every((p) => library.knows(p));
+}
 
 export class BalanceDetector {
   constructor(onEvent, settings = BALANCE_SETTINGS) {
     this.onEvent = onEvent;
     this.s = settings;
+    this.library = undefined; // undefined = use the active library
     this.reset();
   }
 
   reset() {
     this.segment = null;
-    this.live = { shape: null, label: null, mainDeg: null };
+    this.live = { shape: null, label: null, mainDeg: null, holdMs: 0, deduction: null, hint: null };
   }
 
   /** @param frame { t: ms, lm: landmarks in pixels or null (nobody visible), airborne } */
   update({ t, lm, airborne = false }) {
-    const m = !lm || airborne || minVisibility(lm, LEG_POINTS) < this.s.minVisibility
-      ? { shape: null }
-      : measureBalance(lm, this.s);
+    let m;
+    if (!lm) m = { shape: null, deviations: [], hint: 'Step into the camera view' };
+    else if (airborne) m = { shape: null, deviations: [], hint: null };
+    else if (minVisibility(lm, LEG_POINTS) < this.s.minVisibility) {
+      m = { shape: null, deviations: [], hint: 'Whole body and both feet must be in view' };
+    } else {
+      m = measureBalance(lm, this.s, this.library === undefined ? activeLibrary : this.library);
+    }
 
     if (this.segment && m.shape && m.shape !== this.segment.shape) {
       this.endSegment(); // switched straight into another shape
     }
     if (m.shape) {
       if (!this.segment) {
-        this.segment = { shape: m.shape, tStart: t, tLast: t, deviations: {}, releve: [], fullLegs: [], visibility: 1 };
+        this.segment = { shape: m.shape, tStart: t, tLast: t, deviations: {}, releve: [], fullLegs: [], visibility: 1, recognizer: m.recognizer };
       }
       const seg = this.segment;
       seg.tLast = t;
@@ -84,7 +87,17 @@ export class BalanceDetector {
       this.endSegment();
     }
 
-    this.live = { shape: m.shape, label: m.shape ? SHAPES[m.shape].label : null, mainDeg: m.mainDeg ?? null };
+    this.live = {
+      shape: m.shape,
+      label: m.shape ? SHAPES[m.shape].label : null,
+      mainDeg: m.mainDeg ?? null,
+      deviations: m.deviations,
+      holdMs: this.segment ? this.segment.tLast - this.segment.tStart : 0,
+      deduction: m.shape ? photoDeduction(m) : null,
+      confidence: m.confidence ?? null,
+      recognizer: m.recognizer ?? null,
+      hint: m.shape ? null : m.hint ?? null,
+    };
   }
 
   endSegment() {
@@ -99,6 +112,7 @@ export class BalanceDetector {
       releveShare: seg.releve.length ? seg.releve.filter(Boolean).length / seg.releve.length : null,
       fullLegsShare: seg.fullLegs.filter(Boolean).length / seg.fullLegs.length,
       visibility: seg.visibility,
+      recognizer: seg.recognizer,
     }, this.s);
     if (event) this.onEvent(event);
   }
@@ -111,115 +125,96 @@ export class BalanceDetector {
 
 /**
  * Which of the shapes is shown in this frame, and how far each body segment is from the
- * rulebook shape (degrees). Exported for tests, the live readout and tools/image-check.html.
+ * rulebook shape (degrees). Exported for tests, the live readout and the tools.
+ * @param library a PoseLibrary, or null to use only the fixed rules
  */
-export function measureBalance(lm, s = BALANCE_SETTINGS) {
-  const torso = torsoLength(lm);
-  if (!torso) return { shape: null };
-
-  // Free leg = the one with the higher ankle; it must be lifted above the support knee.
-  const leftIsFree = lm[LM.L_ANKLE].y < lm[LM.R_ANKLE].y;
-  const free = legPoints(lm, leftIsFree ? 'L' : 'R');
-  const support = legPoints(lm, leftIsFree ? 'R' : 'L');
-  const hips = mid(lm[LM.L_HIP], lm[LM.R_HIP]);
-  const thighLen = Math.max(dist(free.hip, free.knee), dist(support.hip, support.knee));
-  const shinLen = Math.max(dist(free.knee, free.ankle), dist(support.knee, support.ankle));
+export function measureBalance(lm, s = BALANCE_SETTINGS, library = activeLibrary) {
+  const f = balanceFrame(lm, s);
+  if (!f) return { shape: null, deviations: [], hint: 'Step into the camera view' };
 
   const base = {
     shape: null,
-    help: hasHelp(lm, free, torso, s),
-    releve: isOnReleve(support.heel, support.toe, shinLen, s.releveHeelLift),
-    fullLegs: legsFullLength(legLengthRatios(lm)),
-    facing: facingSign(lm, support.side),
-    split: splitAngle(lm),
-    trunk: trunkTilt(lm),
-    freeKnee: jointAngle(free.hip, free.knee, free.ankle),
     deviations: [],
+    help: f.help,
+    releve: f.releve,
+    fullLegs: f.fullLegs,
+    facing: f.facing,
+    split: f.split,
+    trunk: f.trunk,
+    freeKnee: f.freeKnee,
+    signature: poseSignature(f),
   };
-  if (free.ankle.y >= support.knee.y || base.facing === 0) return base;
 
-  // Forward or backward? Compare the free foot with the head, not the hips: at a 180° split the
-  // foot is straight above the hips, but in a front split the leg passes in front of the face
-  // and in a back split the foot is behind the head.
-  const ears = mid(lm[LM.L_EAR], lm[LM.R_EAR]);
-  const refX = (ears.visibility ?? 0) >= 0.3 ? ears.x : hips.x;
-  const forward = (free.ankle.x - refX) * base.facing > 0;
-  const straight = base.freeKnee >= s.straightKneeDeg;
-  const splitDev = { segment: 'split', label: 'Split', deg: 180 - base.split };
-
-  // Front split: free leg forward and straight, legs far apart.
-  if (forward) {
-    if (straight && base.split >= s.minSplitToRecognize && free.ankle.y < hips.y) {
-      return { ...base, shape: base.help ? 'frontSplitHelp' : 'frontSplit', deviations: [splitDev], mainDeg: base.split };
-    }
-    return base;
+  // 1. Which pose? The library decides when it is ready, otherwise the fixed rules.
+  let shape;
+  let recognizer;
+  let confidence = null;
+  if (libraryIsReady(library) && f.forward !== null) {
+    const r = library.recognize(base.signature);
+    shape = r.pose;
+    recognizer = 'library';
+    confidence = r.confidence;
+  } else {
+    // Rules also cover "can't tell which way she faces": they return nothing then.
+    shape = ruleShape(f, s);
+    recognizer = libraryIsReady(library) ? 'library' : 'rules';
   }
+  // Help is a measured fact (hand on the leg), so it picks the front split variant.
+  if (shape === 'frontSplit' || shape === 'frontSplitHelp') shape = f.help ? 'frontSplitHelp' : 'frontSplit';
 
-  // A hand on a backward leg = back split with help or a ring balance: out of scope.
-  if (base.help) return base;
+  if (!shape) return { ...base, recognizer, confidence, hint: hintFor(f) };
 
-  // Attitude: free leg backward with the knee bent, thigh raised, trunk roughly upright,
-  // and the foot not up at the head (that would be a ring).
-  const thighDeg = thighElevation(free.hip, free.knee, thighLen);
-  const headTop = headTopY(lm);
-  const footAtHead = headTop !== null && free.ankle.y < headTop + 0.25 * torso;
-  if (base.freeKnee >= s.attitudeKneeMin && base.freeKnee <= s.attitudeKneeMax
-      && thighDeg >= s.minAttitudeThighDeg && base.trunk < s.maxAttitudeTrunkTilt && !footAtHead) {
+  // 2. How far from the rulebook shape?
+  const measured = deviationsFor(shape, f);
+  if (!measured) return { ...base, recognizer, confidence, hint: 'Head not visible: move back from the camera' };
+  return { ...base, shape, recognizer, confidence, ...measured };
+}
+
+/** Rulebook deviations for a recognized shape, in degrees per body segment. */
+function deviationsFor(shape, f) {
+  if (shape === 'frontSplitHelp' || shape === 'frontSplit') {
+    return { deviations: [{ segment: 'split', label: 'Split short of 180°', deg: 180 - f.split }], mainDeg: f.split };
+  }
+  if (shape === 'attitude') {
     return {
-      ...base,
-      shape: 'attitude',
       deviations: [
-        { segment: 'thigh', label: 'Thigh below horizontal', deg: BALANCES.ATTITUDE.requiredThighDeg - thighDeg },
-        { segment: 'trunk', label: 'Trunk not vertical', deg: base.trunk },
+        { segment: 'thigh', label: 'Thigh below horizontal', deg: BALANCES.ATTITUDE.requiredThighDeg - f.thighDeg },
+        { segment: 'trunk', label: 'Trunk not vertical', deg: f.trunk },
       ],
-      mainDeg: thighDeg,
+      mainDeg: f.thighDeg,
     };
   }
-
-  // Back split without help: free leg backward, straight-ish, high up.
-  const legUp = legElevation(hips, free.ankle);
-  if (base.freeKnee >= s.attitudeKneeMax && legUp >= s.minBackLegElevation
-      && base.trunk < s.maxUprightTrunkTilt) {
-    const footDeg = footBelowHeadDeg(lm, hips, free);
-    if (footDeg === null) return base;
-    return {
-      ...base,
-      shape: 'backSplitFootAboveHead',
-      deviations: [{ segment: 'foot', label: 'Foot not fully above head', deg: footDeg }],
-      mainDeg: legUp,
-    };
+  if (shape === 'backSplitFootAboveHead') {
+    if (f.footBelowHeadDeg === null) return null;
+    return { deviations: [{ segment: 'foot', label: 'Foot not fully above head', deg: f.footBelowHeadDeg }], mainDeg: f.legUp };
   }
-  return base;
+  return null;
 }
 
-/**
- * Degrees the free leg still has to rise (rotating at the hip) until the WHOLE foot is above
- * the top of the head. 0 when it already is. null when the head can't be seen.
- */
-export function footBelowHeadDeg(lm, hips, free) {
-  const headTop = headTopY(lm);
-  if (headTop === null) return null;
-  // Lowest visible point of the foot: "whole foot above the head" means heel AND toes.
-  const footPoints = [free.heel, free.toe].filter((p) => (p?.visibility ?? 0) >= 0.3);
-  const low = footPoints.length
-    ? footPoints.reduce((a, b) => (b.y > a.y ? b : a))
-    : free.ankle;
-  if (low.y <= headTop) return 0;
-
-  const radius = dist(hips, low); // the foot moves on this circle when the leg rises
-  const rise = hips.y - headTop; // how high above the hips the head top is
-  const neededDeg = toDeg(Math.acos(clamp(-rise / radius, -1, 1))); // elevation that reaches head height
-  return Math.max(0, neededDeg - legElevation(hips, low));
+/** Fixed thresholds, used until the pose library has enough examples. */
+export function ruleShape(f, s = BALANCE_SETTINGS) {
+  if (!f.raised || f.forward === null) return null;
+  const straight = f.freeKnee >= s.straightKneeDeg;
+  if (f.forward) {
+    return straight && f.split >= s.minSplitToRecognize && f.footOverHip > 0 ? 'frontSplit' : null;
+  }
+  if (f.help) return null; // back split with help / ring: out of scope
+  if (f.freeKnee >= s.attitudeKneeMin && f.freeKnee <= s.attitudeKneeMax
+      && f.thighDeg >= s.minAttitudeThighDeg && f.trunk < s.maxAttitudeTrunkTilt && !f.footAtHead) {
+    return 'attitude';
+  }
+  if (f.freeKnee >= s.attitudeKneeMax && f.legUp >= s.minBackLegElevation && f.trunk < s.maxUprightTrunkTilt) {
+    return 'backSplitFootAboveHead';
+  }
+  return null;
 }
 
-/** Is a hand holding the free leg (shin or foot)? */
-function hasHelp(lm, free, torso, s) {
-  const hands = [LM.L_WRIST, LM.R_WRIST, LM.L_INDEX, LM.R_INDEX]
-    .map((i) => lm[i])
-    .filter((p) => p && (p.visibility ?? 0) >= 0.3);
-  const limit = s.helpDistance * torso;
-  return hands.some((h) => distToSegment(h, free.knee, free.ankle) < limit
-    || distToSegment(h, free.ankle, free.toe ?? free.ankle) < limit);
+/** Plain-language reason why no pose is recognized, for the live hint. */
+function hintFor(f) {
+  if (!f.raised) return null; // standing or preparing: nothing to say
+  if (f.forward === null) return 'Turn side-on to the camera';
+  if (!f.fullLegs) return 'Turn side-on: a leg points at the camera';
+  return 'Pose not recognized';
 }
 
 // Names used in labels.csv and the validation tool for each recognized shape.
@@ -229,15 +224,21 @@ const SHAPE_KEYS = {
   backSplitFootAboveHead: 'back_split',
   attitude: 'attitude',
 };
+const SHAPE_FROM_KEY = Object.fromEntries(Object.entries(SHAPE_KEYS).map(([k, v]) => [v, k]));
 
 /** Label name for a measured shape ('none' when no balance is recognized). */
 export function shapeKey(shape) {
   return shape ? SHAPE_KEYS[shape] : 'none';
 }
 
+/** Library pose label for a labels.csv name ('none' for anything else). */
+export function shapeFromKey(key) {
+  return SHAPE_FROM_KEY[key] ?? 'none';
+}
+
 /**
- * Shape deduction for a single photo: the sum of the deviation-band penalties of all body
- * segments (#2.5). Hold time and relevé can't be seen in a photo, so they are left out.
+ * Shape deduction for one frame or photo: the sum of the deviation-band penalties of all body
+ * segments (#2.5). Hold time and relevé can't be seen in one frame, so they are left out.
  * null when no balance is recognized.
  */
 export function photoDeduction(m) {
@@ -302,6 +303,8 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
     measurements,
     confidence: Math.round(m.visibility * 10) / 10,
     warnings,
+    requirement: rule.requirement,
+    recognizedBy: m.recognizer ?? 'rules',
     ruleRef: rule.ref,
   };
 }

@@ -54,6 +54,11 @@
   <script type="module">
     import { getImageTracker, landmarksFromImage, analyzeLandmarks } from '../js/tools/analyzeImage.js';
     import { drawSkeleton } from '../js/draw.js';
+    import { setPoseLibrary } from '../js/elements/balances.js';
+    import { currentLibrary } from '../js/ui/libraryStore.js';
+
+    // Same recognition as the app: default library + poses taught in this browser.
+    setPoseLibrary(currentLibrary());
 
     const $ = (id) => document.getElementById(id);
     const FOLDER_SHAPES = { front_split_help: 'front_split_help', front_split: 'front_split', back_split: 'back_split', attitude: 'attitude', not_these: 'none' };

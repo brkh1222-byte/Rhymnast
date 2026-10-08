@@ -25,8 +25,11 @@ export async function landmarksFromImage(img) {
   return raw.map((p) => ({ x: p.x * img.naturalWidth, y: p.y * img.naturalHeight, visibility: p.visibility ?? 0 }));
 }
 
-/** Everything the rules measure on one set of landmarks. */
-export function analyzeLandmarks(lm) {
+/**
+ * Everything the rules measure on one set of landmarks.
+ * @param library pose library for recognition; undefined = the app's active library, null = rules only
+ */
+export function analyzeLandmarks(lm, library) {
   const visibility = minVisibility(lm, LEG_POINTS);
   const split = splitAngle(lm);
   const legRatios = legLengthRatios(lm);
@@ -36,7 +39,7 @@ export function analyzeLandmarks(lm) {
   });
   // Same visibility rule as the live detector: legs we can't see are not judged.
   const legsVisible = visibility >= BALANCE_SETTINGS.minVisibility;
-  const balance = legsVisible ? measureBalance(lm) : { shape: null, deviations: [] };
+  const balance = legsVisible ? measureBalance(lm, undefined, library) : { shape: null, deviations: [] };
   return {
     visibility,
     legsVisible,

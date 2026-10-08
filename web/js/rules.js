@@ -39,6 +39,7 @@ export const ELEMENTS = {
     value: 0.3,
     // "A split position of 180° is required at the highest point of the leap." (p. 74)
     requiredSplitDeg: 180,
+    requirement: 'A split position of 180° is required at the highest point of the leap. (Table #9, p. 74)',
     ref: 'Jumps #8.1, #9 item 21 (p. 72-78); deviations #2.5 (p. 25)',
   },
   PASSE_BALANCE: {
@@ -48,6 +49,7 @@ export const ELEMENTS = {
     value: 0.1,
     // Passé = free thigh "horizontal position" (p. 88).
     requiredThighDeg: 90,
+    requirement: 'Passé forward or side, thigh in horizontal position; stop position held for a minimum of 1 second. (#10.1.2, table #11 p. 88)',
     // "Stop position fixed in the shape for a minimum of 1 second" (#10.1.2).
     minHoldMs: 1000,
     // Held less than 1 s: valid, Execution penalty 0.30 (#10.2.2, p. 84).
@@ -62,6 +64,7 @@ export const ELEMENTS = {
     // Table of rotation difficulties #13, item 1 (p. 98): 0.10 for 360°.
     value: 0.1,
     requiredThighDeg: 90,
+    requirement: 'Passé forward or side (horizontal position), minimum basic rotation 360° on relevé. (#12.1.2, table #13 p. 98)',
     baseRotationDeg: 360, // #12.1.2
     // +0.10 per additional rotation for pivots with base value 0.10 (#12.2.5, p. 92).
     perExtraRotation: 0.1,
@@ -88,6 +91,7 @@ export const BALANCES = {
     withoutHelp: { code: '2.305', name: 'Front split balance without help', value: 0.5 },
     // "Split is required" (technique, p. 86).
     requiredSplitDeg: 180,
+    requirement: 'Front split with or without help: "Split is required". (Technique, p. 86)',
     verified: false,
     ref: 'Balances #10 (p. 82-84), technique p. 86, table #11 row 3 (p. 88)',
   },
@@ -101,6 +105,7 @@ export const BALANCES = {
     //  whole foot above the head is required. Touching is NOT required" (p. 87).
     footAboveHead: { code: '2.1005', name: 'Back split balance without help', value: 0.5 },
     requiredSplitDeg: 180,
+    requirement: 'Free leg high up backward, without help: "Split is NOT required; whole foot above the head is required. Touching is NOT required." (Technique, p. 87)',
     verified: false,
     ref: 'Balances #10 (p. 82-84), technique p. 86-87, table #11 row 10 (p. 89)',
   },
@@ -112,6 +117,7 @@ export const BALANCES = {
     // "Horizontal position of the free leg (thigh) and the maximum vertical position of
     //  the body" (p. 87).
     requiredThighDeg: 90,
+    requirement: 'Attitude: "Horizontal position of the free leg (thigh) and the maximum vertical position of the body". (Technique, p. 87)',
     verified: false,
     ref: 'Balances #10 (p. 82-84), technique p. 87, table #11 row 12 (p. 89)',
   },
@@ -120,4 +126,37 @@ export const BALANCES = {
 /** Round to 2 decimals (scores are in hundredths). */
 export function round2(value) {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * The rulebook sentence behind each deduction, for the end-of-routine report.
+ * Keys are the section numbers used in penalty `ref`s (e.g. '#2.5.3 p.25' -> '2.5.3').
+ */
+export const RULE_TEXT = {
+  '2.5.2': {
+    page: 25,
+    text: 'When the shape is recognizable with a small deviation of 10° or less of 1 or more of the body segments, the DB is valid with an Execution penalty: 0.10 p. for each incorrect body segment.',
+  },
+  '2.5.3': {
+    page: 25,
+    text: 'When the shape is recognizable with a medium deviation of 11-20° of 1 or more of the body segments, the DB is valid with an Execution penalty: 0.30 p. for each incorrect body segment.',
+  },
+  '2.5.4': {
+    page: 25,
+    text: 'When the shape is not sufficiently recognizable with a large deviation of more than 20° of 1 or more of the body segments, the DB is not valid and receives an Execution penalty: 0.50 p. for each incorrect body segment.',
+  },
+  '10.2.2': {
+    page: 84,
+    text: 'If the shape of the balance is well-defined but the stop position is insufficient (less than 1 second), the balance is valid with an Execution penalty: 0.30 p. "shape not held for a minimum 1 second".',
+  },
+  '10.3': {
+    page: 84,
+    text: 'Balances on the foot may be performed on the toes on relevé or on flat foot. For flat foot, the value of the Difficulty is reduced by 0.10 p.',
+  },
+};
+
+/** Rulebook text for a penalty ref such as '#2.5.3 p.25', or null if we have none. */
+export function ruleTextFor(ref) {
+  const section = /#(\d+(?:\.\d+)*)/.exec(ref ?? '')?.[1];
+  return section ? RULE_TEXT[section] ?? null : null;
 }

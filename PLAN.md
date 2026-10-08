@@ -27,6 +27,10 @@
 - [x] Judge panel UI (artistry, extra D/E, penalties)
 - [x] Event log / audit trail with JSON export
 - [x] White minimalist UI redesign
+- [x] Live feedback: video overlay (pose, match, hold timer, live deduction, hints), card after each
+      move, running total; focus mode (only the 3 balances)
+- [x] Deduction report on Stop judging, with rulebook quotes and pages; print / PDF
+- [x] Pose library + "Teach poses" (record 3 s / photos, export/import)
 
 ## Phase 4 - Validate + polish (Days 12-14)
 - [x] Photo tools: `tools/image-check.html`, `tools/validate.html` (labeled folders → results + fixtures)
