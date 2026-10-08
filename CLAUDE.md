@@ -18,12 +18,12 @@ Positioning: *decision support that flags measurable deductions judges can miss,
 |---|---|---|
 | Skeleton tracking | Pretrained pose model (MediaPipe Pose in browser, or RTMPose/YOLO-pose on a Python backend) | Live, per frame |
 | Element + deduction flags | Small rule set on keypoints (split angle, balance height, supporting-leg bend, landing) | Live |
-| Overall execution estimate | Pretrained/RG-trained AQA model (CoFInAl or CaFlow), if usable weights exist | After the routine |
+| ~~Overall execution estimate~~ | ~~AQA model (CoFInAl / CaFlow)~~: dropped, see Decisions | n/a |
 | Artistry / expression | Human judge panel UI | Manual |
 
 Known limits (be honest in the UI and README):
 - AQA research models score a whole routine after it ends (~1.5 min videos), usually one model per apparatus, and output a number with no per-deduction explanation. They are NOT live.
-- Whether CoFInAl / CaFlow publish downloadable trained weights is UNVERIFIED. Check first.
+- CoFInAl / CaFlow weights were checked on 2026-10-08: not usable (see Decisions).
 - Start body-only (jumps, balances, pivots). Apparatus tracking (ribbon, ball) is a stretch goal.
 - Automate only deductions that are measurable. Do not claim to match human scores.
 
@@ -40,9 +40,26 @@ Known limits (be honest in the UI and README):
 - Prefer simple, readable code over clever code. The team is junior.
 - Never commit videos, model weights or datasets. Use .gitignore and a `data/README.md` explaining how to download them.
 
+## Decisions (made 2026-10-08)
+1. **Pose inference: in the browser** with MediaPipe Pose Landmarker (`@mediapipe/tasks-vision`). No backend.
+   Frontend: Vite + React + TypeScript in `web/`.
+2. **Elements, in build order:** split leap (first, end to end) → balances (passé, arabesque) → simple pivot.
+   Ring jump/balance is a stretch goal (hard to measure from one 2D camera).
+3. **AQA layer dropped** for the 2-week build. Findings from the Phase 0 repo check:
+   - CoFInAl: only one checkpoint (`Ball_best.pkl`), trained on Total score (not E), Spearman ≈ 0.81.
+     Needs pre-extracted Video Swin-B features (mmaction2), offline only. No license.
+   - CaFlow: no trained weights at all; you must train it yourself. No license.
+
+## How scoring works
+The pretrained pose model gives body joints. **Our own rules** measure angles on those joints and compare
+them with the FIG Code of Points. Example: split leap needs a 180° split at the highest point. Deviation
+≤10° = 0.10 E penalty, 11-20° = 0.30, >20° = 0.50 and the difficulty is not valid. See `docs/rules.md`.
+Rule values live in data with a CoP page reference, never as magic numbers in code.
+
+**2D limit:** one camera measures angles in the image plane. A split angle is only reliable when the camera
+is side-on to the split. Show this in the UI and skip low-visibility frames.
+
 ## Open decisions (ask the user before assuming)
-1. Pose inference location: in-browser (MediaPipe JS) vs Python backend (FastAPI + WebSocket).
-2. Final element list (suggested 6-8: split leap, ring jump, 3 balances, simple pivot).
-3. Whether usable AQA weights exist; if not, drop the AQA layer for the 2-week build.
+- None right now.
 
 See PLAN.md for the phased build order.

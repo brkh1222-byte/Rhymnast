@@ -1,0 +1,25 @@
+# Dependencies and build output
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Data, videos and model weights: never commit (see data/README.md)
+data/*
+!data/README.md
+*.mp4
+*.mov
+*.webm
+*.avi
+*.task
+*.tflite
+*.pkl
+*.pth
+*.onnx
+*.pdf
+
+# Local env and OS files
+.env
+.env.*
+.DS_Store
+*.log
