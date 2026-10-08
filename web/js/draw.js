@@ -19,7 +19,7 @@ const MIN_VISIBILITY = 0.3;
  * @param lm landmarks in pixels, or null
  * @param legColor color for the legs (shows what the rules are looking at)
  */
-export function drawSkeleton(ctx, lm, legColor = '#22c55e') {
+export function drawSkeleton(ctx, lm, legColor = '#d9bd84') {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   if (!lm) return;
   const scale = Math.max(ctx.canvas.width, ctx.canvas.height) / 640;
@@ -36,14 +36,14 @@ export function drawSkeleton(ctx, lm, legColor = '#22c55e') {
       ctx.stroke();
     }
   };
-  line(BONES, 'rgba(255,255,255,0.85)', 3);
-  line(LEG_BONES, legColor, 5);
+  line(BONES, 'rgba(255,255,255,0.9)', 2);
+  line(LEG_BONES, legColor, 3.5);
 
   ctx.fillStyle = '#ffffff';
   for (const i of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
     if ((lm[i].visibility ?? 0) < MIN_VISIBILITY) continue;
     ctx.beginPath();
-    ctx.arc(lm[i].x, lm[i].y, 4 * scale, 0, Math.PI * 2);
+    ctx.arc(lm[i].x, lm[i].y, 3 * scale, 0, Math.PI * 2);
     ctx.fill();
   }
 }

@@ -158,9 +158,9 @@ function tick() {
 }
 
 function legColor() {
-  if (leap.live.airborne) return '#f59e0b';
-  if (passe.live.inShape) return '#a78bfa';
-  return '#22c55e';
+  if (leap.live.airborne) return '#e8a3b0'; // blush: in flight
+  if (passe.live.inShape) return '#9fc4aa'; // sage: passé shape
+  return '#d9bd84'; // champagne gold: standing
 }
 
 function countFps() {
