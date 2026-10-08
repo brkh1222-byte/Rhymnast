@@ -44,6 +44,12 @@ The camera only works on `localhost` or HTTPS (browser rule). To use it from ano
 | Split leap | 1.2103 | 0.30 | Shape deviation from 180°: ≤10° −0.10, 11–20° −0.30, >20° −0.50 and DB not valid |
 | Passé balance | 2.101 | 0.10 (−0.10 on flat foot) | Thigh below horizontal (same bands); held < 1 s −0.30 |
 | Passé pivot | 3.101 | 0.10 + 0.10 per extra 360° | Thigh below horizontal (same bands); < 360° not valid |
+| **Front split balance with help** | 2.303 | 0.30 ⚠️ (without help: 2.305, 0.50 ⚠️) | Split short of 180° (bands); held < 1 s −0.30; flat foot −0.10 |
+| **Back split balance without help** | 2.1005 | 0.50 ⚠️ | Whole foot not above the head (bands, in degrees); held < 1 s −0.30; flat foot −0.10 |
+| **Attitude balance** | 2.1202 | 0.20 ⚠️ | Thigh below horizontal and trunk not vertical, each its own band; held < 1 s −0.30; flat foot −0.10 |
+
+⚠️ = balance value read from the table by row order; a teammate must confirm it against the
+pictograms on CoP p. 88-89 (see `docs/rules.md`).
 
 Scoring follows the Code: **Final = D + A + E − penalties**, highest 8 body difficulties count, a
 repeated difficulty counts once but its execution faults are still deducted.

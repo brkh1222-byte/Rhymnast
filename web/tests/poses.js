@@ -86,6 +86,84 @@ export function passePose({ thighDeg = 90, releve = true, width = 0.15 } = {}) {
   return lm;
 }
 
+// ---------- Balances on the right (support) leg, side-on, facing +x (facing: 1) or -x (-1) ----------
+
+/**
+ * Builds a balance skeleton: support leg straight down, free (left) leg placed by `placeFree`.
+ * Adds a head (for "foot above head") and hands (forward, or holding the free foot if help).
+ */
+function balanceBody({ facing = 1, releve = true, help = false, trunkTilt = 0, width = 0.15 }, placeFree) {
+  const lm = body({ width: 0, rise: 0 }); // legs from one hip point, widened below
+  const hip = lm[LM.L_HIP];
+  // Support leg (right) straight down; toes point the way she faces.
+  lm[LM.R_KNEE] = p(hip.x, HIP_Y + THIGH);
+  const ankleY = HIP_Y + THIGH + SHIN - (releve ? 6 : 0);
+  lm[LM.R_ANKLE] = p(hip.x, ankleY);
+  lm[LM.R_FOOT] = p(hip.x + 10 * facing, FLOOR_Y);
+  lm[LM.R_HEEL] = p(hip.x - 4 * facing, releve ? ankleY - 6 : FLOOR_Y);
+  placeFree(lm, hip);
+
+  // Head and hands, then lean the upper body forward by trunkTilt around the hips.
+  const shoulderY = HIP_Y - TORSO;
+  lm[LM.NOSE] = p(hip.x + 12 * facing, shoulderY - 40);
+  lm[LM.L_EYE] = p(hip.x + 8 * facing, shoulderY - 43);
+  lm[LM.R_EYE] = p(hip.x + 8 * facing, shoulderY - 43);
+  lm[LM.L_EAR] = p(hip.x - 5 * facing, shoulderY - 40);
+  lm[LM.R_EAR] = p(hip.x - 5 * facing, shoulderY - 40);
+  for (const i of [LM.L_WRIST, LM.R_WRIST, LM.L_INDEX, LM.R_INDEX]) lm[i] = p(hip.x + 100 * facing, shoulderY);
+  const a = rad(trunkTilt * facing);
+  for (const i of [LM.NOSE, LM.L_EYE, LM.R_EYE, LM.L_EAR, LM.R_EAR, LM.L_SHOULDER, LM.R_SHOULDER,
+    LM.L_WRIST, LM.R_WRIST, LM.L_INDEX, LM.R_INDEX]) {
+    const dx = lm[i].x - hip.x;
+    const dy = lm[i].y - HIP_Y;
+    lm[i] = p(hip.x + dx * Math.cos(a) - dy * Math.sin(a), HIP_Y + dx * Math.sin(a) + dy * Math.cos(a));
+  }
+  if (help) {
+    // One hand holds the free leg at the ankle (after the lean, so it stays on the leg).
+    const ankle = lm[LM.L_ANKLE];
+    lm[LM.L_WRIST] = p(ankle.x + 3, ankle.y + 3);
+    lm[LM.L_INDEX] = p(ankle.x + 5, ankle.y + 1);
+  }
+  // Widen shoulders and hips to the body width, keeping their midpoints.
+  const half = (width * TORSO) / 2;
+  for (const [key, dx] of [['L_SHOULDER', -half], ['R_SHOULDER', half], ['L_HIP', -half], ['R_HIP', half]]) {
+    lm[LM[key]] = p(lm[LM[key]].x + dx, lm[LM[key]].y);
+  }
+  return lm;
+}
+
+/** Front split balance: free leg forward, `splitDeg` from the support leg. */
+export function frontSplitBalance({ splitDeg = 180, ...opts } = {}) {
+  const facing = opts.facing ?? 1;
+  return balanceBody(opts, (lm, hip) => straightLeg(lm, 'L', hip, facing * splitDeg));
+}
+
+/** Back split balance: straight free leg backward, raised `legDeg` from straight down. */
+export function backSplitBalance({ legDeg = 170, ...opts } = {}) {
+  const facing = opts.facing ?? 1;
+  return balanceBody(opts, (lm, hip) => straightLeg(lm, 'L', hip, -facing * legDeg));
+}
+
+/** Arabesque: straight free leg backward at the horizontal (not one of our three shapes). */
+export function arabesqueBalance(opts = {}) {
+  return backSplitBalance({ legDeg: 95, ...opts });
+}
+
+/** Attitude: free thigh backward at `thighDeg`, knee bent to `kneeDeg`, shin rising. */
+export function attitudeBalance({ thighDeg = 90, kneeDeg = 90, ...opts } = {}) {
+  const facing = opts.facing ?? 1;
+  return balanceBody(opts, (lm, hip) => {
+    const thighAngle = -facing * thighDeg; // signed angle from straight down
+    const shinAngle = thighAngle - facing * (180 - kneeDeg);
+    const knee = p(hip.x + THIGH * Math.sin(rad(thighAngle)), hip.y + THIGH * Math.cos(rad(thighAngle)));
+    const ankle = p(knee.x + SHIN * Math.sin(rad(shinAngle)), knee.y + SHIN * Math.cos(rad(shinAngle)));
+    lm[LM.L_KNEE] = knee;
+    lm[LM.L_ANKLE] = ankle;
+    lm[LM.L_FOOT] = p(ankle.x + 10 * Math.sin(rad(shinAngle)), ankle.y + 10 * Math.cos(rad(shinAngle)));
+    lm[LM.L_HEEL] = p(ankle.x - 3 * Math.sin(rad(shinAngle)), ankle.y - 3 * Math.cos(rad(shinAngle)));
+  });
+}
+
 /** Moves one ankle (and its foot) toward the hip: a leg pointing at the camera. */
 export function foreshortenLeg(lm, sideKey, factor) {
   const hips = { x: (lm[LM.L_HIP].x + lm[LM.R_HIP].x) / 2, y: (lm[LM.L_HIP].y + lm[LM.R_HIP].y) / 2 };

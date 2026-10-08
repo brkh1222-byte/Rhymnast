@@ -50,17 +50,19 @@ export class Scoreboard {
       .filter((e) => !e.rejected)
       .sort((a, b) => a.t - b.t);
 
-    // Repetition: the first valid performance of a code counts, later ones don't.
-    const seenCodes = new Set();
+    // Repetition: the first valid difficulty from a box (table row) counts, later ones don't.
+    // Events without a box (e.g. leaps) use their code.
+    const seenBoxes = new Set();
     const status = new Map(); // id -> 'counted' | 'repeat' | 'not valid' | 'not in top 8' | 'rejected'
     const candidates = [];
     for (const e of accepted) {
+      const box = e.box ?? e.code;
       if (!e.dbValid || e.dbValue <= 0) {
         status.set(e.id, 'not valid');
-      } else if (seenCodes.has(e.code)) {
+      } else if (seenBoxes.has(box)) {
         status.set(e.id, 'repeat');
       } else {
-        seenCodes.add(e.code);
+        seenBoxes.add(box);
         candidates.push(e);
       }
     }

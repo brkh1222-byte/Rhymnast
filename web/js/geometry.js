@@ -7,8 +7,16 @@
 // https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
 export const LM = {
   NOSE: 0,
+  L_EYE: 2,
+  R_EYE: 5,
+  L_EAR: 7,
+  R_EAR: 8,
   L_SHOULDER: 11,
   R_SHOULDER: 12,
+  L_WRIST: 15,
+  R_WRIST: 16,
+  L_INDEX: 19,
+  R_INDEX: 20,
   L_HIP: 23,
   R_HIP: 24,
   L_KNEE: 25,
@@ -139,4 +147,78 @@ export function bodyWidthRatio(lm) {
   const shoulders = dist(lm[LM.L_SHOULDER], lm[LM.R_SHOULDER]);
   const hips = dist(lm[LM.L_HIP], lm[LM.R_HIP]);
   return (shoulders + hips) / 2 / torso;
+}
+
+/** The hip, knee, ankle, heel and toe of one leg ('L' or 'R'). */
+export function legPoints(lm, sideKey) {
+  const L = sideKey === 'L';
+  return {
+    side: sideKey,
+    hip: lm[L ? LM.L_HIP : LM.R_HIP],
+    knee: lm[L ? LM.L_KNEE : LM.R_KNEE],
+    ankle: lm[L ? LM.L_ANKLE : LM.R_ANKLE],
+    heel: lm[L ? LM.L_HEEL : LM.R_HEEL],
+    toe: lm[L ? LM.L_FOOT : LM.R_FOOT],
+  };
+}
+
+/** Shortest distance from point p to the line segment a-b. */
+export function distToSegment(p, a, b) {
+  const ab = sub(b, a);
+  const lengthSq = ab.x * ab.x + ab.y * ab.y;
+  if (!lengthSq) return dist(p, a);
+  const t = clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lengthSq, 0, 1);
+  return dist(p, { x: a.x + t * ab.x, y: a.y + t * ab.y });
+}
+
+/** How far a point is raised around the hip: 0 = straight down, 90 = level, 180 = straight up. */
+export function legElevation(hip, point) {
+  return Math.abs(signedAngle({ x: 0, y: 1 }, sub(point, hip)));
+}
+
+/** Trunk lean from vertical in degrees (mid-hip -> mid-shoulder vs straight up). 0 = upright. */
+export function trunkTilt(lm) {
+  const hips = mid(lm[LM.L_HIP], lm[LM.R_HIP]);
+  const shoulders = mid(lm[LM.L_SHOULDER], lm[LM.R_SHOULDER]);
+  return Math.abs(signedAngle({ x: 0, y: -1 }, sub(shoulders, hips)));
+}
+
+/**
+ * Estimated y of the top of the head. MediaPipe has no head-top point, so we take the
+ * highest visible face point (nose, eyes, ears) and add 0.2 torso lengths (forehead + hair).
+ */
+export function headTopY(lm) {
+  const face = [LM.NOSE, LM.L_EYE, LM.R_EYE, LM.L_EAR, LM.R_EAR]
+    .map((i) => lm[i])
+    .filter((p) => p && (p.visibility ?? 0) >= 0.3);
+  if (face.length === 0) return null;
+  return Math.min(...face.map((p) => p.y)) - 0.2 * torsoLength(lm);
+}
+
+/**
+ * Which way the gymnast faces along the image x axis: +1 (right), -1 (left), 0 (unknown).
+ * Uses the support foot (heel -> toes); falls back to the head (ears -> nose).
+ */
+export function facingSign(lm, supportSide) {
+  const torso = torsoLength(lm);
+  const { heel, toe } = legPoints(lm, supportSide);
+  if ((heel?.visibility ?? 0) >= 0.3 && (toe?.visibility ?? 0) >= 0.3
+      && Math.abs(toe.x - heel.x) > 0.05 * torso) {
+    return Math.sign(toe.x - heel.x);
+  }
+  const nose = lm[LM.NOSE];
+  const ears = mid(lm[LM.L_EAR], lm[LM.R_EAR]);
+  if ((nose?.visibility ?? 0) >= 0.3 && Math.abs(nose.x - ears.x) > 0.03 * torso) {
+    return Math.sign(nose.x - ears.x);
+  }
+  return 0;
+}
+
+/**
+ * On relevé (on the toes)? True when the heel is clearly above the toes.
+ * Returns null when the foot is not visible. heelLift is in shin lengths.
+ */
+export function isOnReleve(heel, toe, shinLength, heelLift = 0.12) {
+  if ((heel?.visibility ?? 0) < 0.3 || (toe?.visibility ?? 0) < 0.3) return null;
+  return toe.y - heel.y > heelLift * shinLength;
 }

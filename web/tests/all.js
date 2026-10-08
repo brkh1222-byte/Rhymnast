@@ -3,5 +3,6 @@ import './geometry.test.js';
 import './splitLeap.test.js';
 import './passe.test.js';
 import './scoring.test.js';
+import './balances.test.js';
 
 export { runAll } from './harness.js';

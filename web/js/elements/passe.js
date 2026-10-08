@@ -11,7 +11,8 @@
 // when the gymnast's back is to the camera. Accuracy: about ±45° per pivot.
 
 import {
-  LM, LEG_POINTS, bodyWidthRatio, dist, jointAngle, minVisibility, thighElevation,
+  LM, LEG_POINTS, bodyWidthRatio, dist, isOnReleve, jointAngle, legPoints, minVisibility,
+  thighElevation,
 } from '../geometry.js';
 import { ELEMENTS, deviationBand, round2 } from '../rules.js';
 
@@ -44,10 +45,10 @@ export class PasseDetector {
   }
 
   /**
-   * @param frame { t: ms, lm: landmarks in pixels, airborne: from the leap detector }
+   * @param frame { t: ms, lm: landmarks in pixels or null (nobody visible), airborne }
    */
   update({ t, lm, airborne = false }) {
-    if (airborne || minVisibility(lm, LEG_POINTS) < this.s.minVisibility) {
+    if (!lm || airborne || minVisibility(lm, LEG_POINTS) < this.s.minVisibility) {
       this.maybeEndSegment(t);
       this.live = { ...this.live, inShape: false, thighDeg: null };
       return;
@@ -121,8 +122,8 @@ export class PasseDetector {
 export function measurePasse(lm, s = PASSE_SETTINGS) {
   // The free leg is the one with the higher knee (smaller y).
   const leftIsFree = lm[LM.L_KNEE].y < lm[LM.R_KNEE].y;
-  const free = leftIsFree ? side(lm, 'L') : side(lm, 'R');
-  const support = leftIsFree ? side(lm, 'R') : side(lm, 'L');
+  const free = legPoints(lm, leftIsFree ? 'L' : 'R');
+  const support = legPoints(lm, leftIsFree ? 'R' : 'L');
 
   // Real thigh/shin length = the longer of the two legs (2D only ever shortens).
   const thighLen = Math.max(dist(free.hip, free.knee), dist(support.hip, support.knee));
@@ -133,10 +134,7 @@ export function measurePasse(lm, s = PASSE_SETTINGS) {
   const freeFootHigh = free.ankle.y < support.knee.y + s.freeFootAboveKnee * shinLen;
   const freeKneeBent = free.ankle.y - free.knee.y > s.freeShinDrop * shinLen;
 
-  let releve = null;
-  if ((support.heel?.visibility ?? 0) >= 0.3 && (support.toe?.visibility ?? 0) >= 0.3) {
-    releve = support.toe.y - support.heel.y > s.releveHeelLift * shinLen;
-  }
+  const releve = isOnReleve(support.heel, support.toe, shinLen, s.releveHeelLift);
 
   const inShape = thighDeg >= s.minThighDeg
     && supportKneeDeg >= s.minSupportKneeDeg
@@ -232,17 +230,6 @@ export function classifyPasse(m, s = PASSE_SETTINGS) {
     },
     warnings,
     ruleRef: rule.ref,
-  };
-}
-
-function side(lm, s) {
-  const L = s === 'L';
-  return {
-    hip: lm[L ? LM.L_HIP : LM.R_HIP],
-    knee: lm[L ? LM.L_KNEE : LM.R_KNEE],
-    ankle: lm[L ? LM.L_ANKLE : LM.R_ANKLE],
-    heel: lm[L ? LM.L_HEEL : LM.R_HEEL],
-    toe: lm[L ? LM.L_FOOT : LM.R_FOOT],
   };
 }
 

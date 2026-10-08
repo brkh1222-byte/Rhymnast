@@ -46,8 +46,8 @@ export class SplitLeapDetector {
 
   /** @param frame { t: ms, lm: landmarks in pixels } */
   update({ t, lm }) {
-    const legsVisible = minVisibility(lm, LEG_POINTS) >= this.s.minVisibility;
-    const torso = torsoLength(lm);
+    const legsVisible = Boolean(lm) && minVisibility(lm, LEG_POINTS) >= this.s.minVisibility;
+    const torso = lm ? torsoLength(lm) : 0;
     if (!legsVisible || torso < 1) {
       // Lost the gymnast mid-flight for too long: drop the jump.
       if (this.flight && t - this.flight.lastSeen > 500) this.flight = null;

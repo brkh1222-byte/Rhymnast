@@ -46,8 +46,10 @@ Known limits (be honest in the UI and README):
    Frontend: **plain ES modules, no build step, no npm** in `web/` (changed from Vite+React on 2026-10-08:
    Node isn't installed on the dev machine, and plain JS is easier for the junior team). Run with
    `python3 -m http.server`. Tests: `web/tests/run.sh` (macOS JavaScriptCore) or `web/tests/` in a browser.
-2. **Elements built:** split leap (1.2103), passé balance (2.101), passé pivot (3.101).
-   Next: arabesque/side-split balances (value columns need human check), landing faults.
+2. **Focus elements (user, 2026-10-08): three BALANCES** (not pivots): front split with help (2.303),
+   back split without help with trunk upright = "whole foot above the head" (2.1005), attitude (2.1202).
+   Code: `web/js/elements/balances.js`. Their D values are mapped by row order and still need a human
+   check against the CoP pictograms (p. 88-89). Also built earlier: split leap, passé balance/pivot.
    Ring jump/balance is a stretch goal (hard to measure from one 2D camera).
 3. **AQA layer dropped** for the 2-week build. Findings from the Phase 0 repo check:
    - CoFInAl: only one checkpoint (`Ball_best.pkl`), trained on Total score (not E), Spearman ≈ 0.81.

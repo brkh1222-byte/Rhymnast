@@ -5,6 +5,7 @@ import { LandmarkSmoother } from './oneEuro.js';
 import { legLengthRatios } from './geometry.js';
 import { SplitLeapDetector, legsFullLength } from './elements/splitLeap.js';
 import { PasseDetector } from './elements/passe.js';
+import { BalanceDetector } from './elements/balances.js';
 import { Scoreboard } from './scoring.js';
 import { RULE_SOURCE } from './rules.js';
 import { drawSkeleton } from './draw.js';
@@ -15,7 +16,7 @@ const ui = {
   badge: $('judging-badge'), btnCamera: $('btn-camera'), fileInput: $('file-input'),
   btnJudge: $('btn-judge'), btnReset: $('btn-reset'), btnExport: $('btn-export'),
   modelSelect: $('model-select'), events: $('events'), eventCount: $('event-count'),
-  fps: $('fps'), view: $('view'), split: $('split'), thigh: $('thigh'), releve: $('releve'), state: $('state'),
+  fps: $('fps'), view: $('view'), split: $('split'), shape: $('shape'), releve: $('releve'), state: $('state'),
   final: $('final'), scoreD: $('score-d'), scoreE: $('score-e'), scoreA: $('score-a'),
   scoreDDetail: $('score-d-detail'), scoreEDetail: $('score-e-detail'),
   inArtistry: $('in-artistry'), inExtraD: $('in-extra-d'), inExtraE: $('in-extra-e'), inPenalties: $('in-penalties'),
@@ -44,6 +45,7 @@ const onEvent = (event) => {
 };
 const leap = new SplitLeapDetector(onEvent);
 const passe = new PasseDetector(onEvent);
+const balance = new BalanceDetector(onEvent);
 
 // ---------- Model ----------
 
@@ -148,9 +150,14 @@ function tick() {
     const h = ui.video.videoHeight;
     const pixels = raw.map((p) => ({ x: p.x * w, y: p.y * h, visibility: p.visibility ?? 0 }));
     lm = smoother.smooth(pixels, t / 1000);
-    leap.update({ t, lm });
-    passe.update({ t, lm, airborne: leap.live.airborne });
+  } else {
+    smoother.reset(); // don't drag old positions into the next person seen
   }
+  // Detectors also get frames with nobody visible (lm = null), so a shape that ends by
+  // leaving the frame is still closed and judged.
+  leap.update({ t, lm });
+  passe.update({ t, lm, airborne: leap.live.airborne });
+  balance.update({ t, lm, airborne: leap.live.airborne });
 
   drawSkeleton(ctx, lm, legColor());
   renderLive(lm);
@@ -159,7 +166,7 @@ function tick() {
 
 function legColor() {
   if (leap.live.airborne) return '#e8a3b0'; // blush: in flight
-  if (passe.live.inShape) return '#9fc4aa'; // sage: passé shape
+  if (passe.live.inShape || balance.live.shape) return '#9fc4aa'; // sage: holding a balance shape
   return '#d9bd84'; // champagne gold: standing
 }
 
@@ -178,7 +185,10 @@ function countFps() {
 // ---------- Judging controls ----------
 
 function setJudging(on) {
-  if (!on && state.judging) passe.flush(); // judge a balance still being held
+  if (!on && state.judging) {
+    passe.flush(); // judge a balance still being held
+    balance.flush();
+  }
   state.judging = on;
   if (on && state.source === 'camera' && scoreboard.events.length === 0) {
     state.routineStartMs = performance.now();
@@ -200,6 +210,7 @@ function resetTracking() {
   smoother.reset();
   leap.reset();
   passe.reset();
+  balance.reset();
   state.lastVideoTime = -1;
 }
 
@@ -212,7 +223,7 @@ function setMessage(text) {
 
 function renderLive(lm) {
   if (!lm) {
-    for (const el of [ui.view, ui.split, ui.thigh, ui.releve]) el.textContent = '–';
+    for (const el of [ui.view, ui.split, ui.shape, ui.releve]) el.textContent = '–';
     ui.state.textContent = 'no gymnast';
     return;
   }
@@ -221,13 +232,21 @@ function renderLive(lm) {
   ui.view.className = fullLegs ? 'good' : 'warn';
   const split = leap.live.splitDeg;
   ui.split.textContent = split == null ? '–' : `${Math.round(split)}°`;
-  ui.thigh.textContent = passe.live.thighDeg == null ? '–' : `${Math.round(passe.live.thighDeg)}°`;
+  ui.shape.textContent = shapeLabel();
   ui.releve.textContent = passe.live.releve == null ? '?' : passe.live.releve ? 'yes' : 'no';
   ui.state.textContent = leap.live.airborne
     ? 'in flight'
     : passe.live.inShape
       ? `passé${passe.live.rotationDeg ? ` · turning ${passe.live.rotationDeg}°` : ''}`
-      : 'ground';
+      : balance.live.shape ? 'balance' : 'ground';
+}
+
+/** The shape being held right now, with its main angle, for the live strip. */
+function shapeLabel() {
+  const b = balance.live;
+  if (b.shape) return b.mainDeg == null ? b.label : `${b.label} ${Math.round(b.mainDeg)}°`;
+  if (passe.live.inShape && passe.live.thighDeg != null) return `passé ${Math.round(passe.live.thighDeg)}°`;
+  return '–';
 }
 
 function judgeInputs() {
@@ -307,6 +326,10 @@ function describe(m) {
   const parts = [];
   if (m.peakSplitDeg != null) parts.push(`split ${m.peakSplitDeg}°`);
   if (m.thighDeg != null) parts.push(`thigh ${m.thighDeg}°`);
+  if (m.splitDevDeg != null) parts.push(m.splitDevDeg ? `split ${m.splitDevDeg}° short of 180°` : 'split 180°');
+  if (m.footDevDeg != null) parts.push(m.footDevDeg ? `foot ${m.footDevDeg}° below head height` : 'whole foot above head');
+  if (m.thighDevDeg != null) parts.push(m.thighDevDeg ? `thigh ${m.thighDevDeg}° below horizontal` : 'thigh horizontal');
+  if (m.trunkDevDeg != null) parts.push(`trunk ${m.trunkDevDeg}° from vertical`);
   if (m.rotations != null) parts.push(`${m.rotations} turn${m.rotations > 1 ? 's' : ''}`);
   if (m.holdMs != null && m.rotations == null) parts.push(`held ${(m.holdMs / 1000).toFixed(1)} s`);
   if (m.relevePct != null) parts.push(`relevé ${m.relevePct}%`);

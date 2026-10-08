@@ -62,6 +62,48 @@ Shapes held under 0.3 s are treated as passing movements, not balance attempts.
 **Measured as:** rotations counted from the body's apparent width (wide when facing toward/away
 from the camera, narrow when side-on; each change ≈ 90°). Accuracy about ±45°.
 
+## Balances: shared rules ✅
+- On the foot: "Defined and clearly fixed shape" and "Stop position fixed in the shape for a minimum
+  of 1 second" (#10.1.2, p. 82) ✅
+- Held < 1 s with a well-defined shape: valid, E −0.30 (#10.2.2, p. 84) ✅. No stop (swing/kick): not
+  valid (#10.2.3) ✅ (we ignore holds under 0.3 s).
+- Flat foot: value −0.10 (#10.3, p. 84) ✅. Support leg straight or bent: same value (#10.4) ✅.
+- Deviations are per body segment and add up, e.g. "Small deviation of the split + Medium deviation of
+  the trunk: 0.10 + 0.30 p., DB valid" and "Large deviation of the trunk 0.50 p., DB not valid"
+  (examples, p. 83) ✅
+- Holding the support leg with the hand: not valid (#10.5) ⚠️ not automated. Apparatus technical element
+  required (#10.8) ⚠️ not automated (judges check).
+
+## Front split balance with help: row 3, code 2.303, value 0.30 ⚠️ value
+- Technique: "Front split with or without help · Split is required" (#10.11, p. 86) ✅
+- Table #11 row 3 "Front split with or without help" lists 2.303 (0.30) and 2.305 (0.50) (p. 88).
+  ⚠️ We assume **with help = 0.30, without help = 0.50** (order of the row title). Check the pictograms.
+- **Measured as:** free leg forward of the head, straight; split = angle between the legs at the hips;
+  deviation = 180° − split. "Help" = a wrist or finger within 0.3 torso lengths of the free shin/foot.
+  Without help it's scored as 2.305; both are the same box, so only one counts.
+
+## Back split balance without help (foot above head): row 10, code 2.1005, value 0.50 ⚠️ value
+- Technique: "Free leg high up backward, without help · Split is NOT required; whole foot above the
+  head is required · Touching is NOT required" (#10.11, p. 87) ✅
+- Table #11 row 10 "Back split with help, also foot above head without help" lists 2.1003 (0.30) and
+  2.1005 (0.50) (p. 89). ⚠️ We assume **foot above head without help = 0.50**. Check the pictograms.
+- **Measured as:** free leg backward (foot behind the head), knee straight, leg at least 30° above
+  horizontal, trunk lean < 60°. Deviation = degrees the leg must still rise at the hip until the lowest
+  point of the foot (heel or toes) is above the top of the head. MediaPipe has no head-top point: we use
+  the highest eye/ear/nose point + 0.2 torso lengths.
+- Back split **with** help and trunk-forward back splits (row 11) are not scored: in 2D they look like a
+  front split with the trunk bent back (seen on a competition photo).
+
+## Attitude balance: row 12, code 2.1202, value 0.20 ⚠️ value
+- Technique: "Attitude · Horizontal position of the free leg (thigh) and the maximum vertical position
+  of the body" (#10.11, p. 87) ✅
+- Table #11 row 12 "Attitude, also ring with help/with the leg on the shoulder, also ring without
+  help/attitude with back bend of the trunk" lists 2.1202, 2.1203, 2.1204 (p. 89). ⚠️ We assume the plain
+  attitude = 0.20 (first in the row title).
+- **Measured as:** free leg backward, knee bent 60-140°, no hand on the leg, foot not at the head (that's
+  a ring). Two segments: **thigh** deviation = 90° − thigh elevation; **trunk** deviation = lean from
+  vertical. Each gets its own band and penalty (p. 83 examples).
+
 ## Not automated yet (judges enter by hand)
 - Heavy landing; visibly arched back on landing; swing technique ("kip") (Execution table, p. 121) ⚠️
   penalty column to verify before automating

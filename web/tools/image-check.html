@@ -27,6 +27,7 @@
     import { createPoseTracker } from '../js/pose.js';
     import { splitAngle, minVisibility, LEG_POINTS, legLengthRatios } from '../js/geometry.js';
     import { measurePasse } from '../js/elements/passe.js';
+    import { measureBalance } from '../js/elements/balances.js';
     import { judgeSplitLeap, legsFullLength } from '../js/elements/splitLeap.js';
     import { drawSkeleton } from '../js/draw.js';
 
@@ -58,7 +59,8 @@
         sideOn: legsFullLength(legRatios),
       });
       const passe = measurePasse(lm);
-      window.result = { found: true, split, visibility, legRatios, verdict, passe };
+      const balance = measureBalance(lm);
+      window.result = { found: true, split, visibility, legRatios, verdict, passe, balance };
       out.textContent = [
         `Split angle: ${split.toFixed(1)}°   (leg visibility ${visibility.toFixed(2)})`,
         `If this is the peak of a split leap -> DB ${verdict.dbValid ? 'valid' : 'NOT valid'} ${verdict.dbValue.toFixed(2)}, ` +
@@ -66,6 +68,10 @@
         ...verdict.warnings.map((w) => `⚠ ${w}`),
         `Leg length / torso: ${legRatios.map((r) => r.toFixed(2)).join(', ')} (full length is about 1.8-2.1)`,
         `Passé check: thigh ${passe.thighDeg.toFixed(0)}°, support knee ${passe.supportKneeDeg.toFixed(0)}°, in passé shape: ${passe.inShape}`,
+        `Balance shape: ${balance.shape ?? 'none'}` +
+          (balance.shape ? ` · ${balance.deviations.map((d) => `${d.label} ${Math.round(d.deg)}°`).join(', ')}` : '') +
+          ` · help ${balance.help} · relevé ${balance.releve} · facing ${balance.facing}` +
+          ` · free knee ${Math.round(balance.freeKnee ?? 0)}° · trunk ${Math.round(balance.trunk ?? 0)}°`,
       ].join('\n');
     }
 

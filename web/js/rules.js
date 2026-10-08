@@ -69,6 +69,54 @@ export const ELEMENTS = {
   },
 };
 
+/** Rules shared by all balances on the foot (#10.1.2, #10.2.2, #10.3, p. 82-84). */
+export const BALANCE_RULES = {
+  minHoldMs: 1000, // "Stop position fixed in the shape for a minimum of 1 second"
+  shortHoldPenalty: 0.3, // held < 1 s: valid, E 0.30 (#10.2.2, p. 84)
+  flatFootReduction: 0.1, // on flat foot the value is reduced by 0.10 (#10.3, p. 84)
+};
+
+// The three balances the team focuses on. VALUES NOT YET VERIFIED (verified: false):
+// the PDF text does not say which pictogram sits in which value column, so each value is
+// mapped by the order of the variants in the row title. A teammate must check p. 88-89.
+// `box` = the table row; a difficulty from the same box can only count once (#2.4.1).
+export const BALANCES = {
+  FRONT_SPLIT: {
+    box: '2.3',
+    // Table #11 row 3 "Front split with or without help" (p. 88): codes 2.303 and 2.305.
+    withHelp: { code: '2.303', name: 'Front split balance with help', value: 0.3 },
+    withoutHelp: { code: '2.305', name: 'Front split balance without help', value: 0.5 },
+    // "Split is required" (technique, p. 86).
+    requiredSplitDeg: 180,
+    verified: false,
+    ref: 'Balances #10 (p. 82-84), technique p. 86, table #11 row 3 (p. 88)',
+  },
+  BACK_SPLIT: {
+    box: '2.10',
+    // Table #11 row 10 "Back split with help, also foot above head without help" (p. 89).
+    // "Back split with help: Split is required. Touching is NOT required" (p. 86).
+    // Not scored by the app (looks like other shapes in 2D), kept for reference.
+    withHelp: { code: '2.1003', name: 'Back split balance with help', value: 0.3 },
+    // "Free leg high up backward, without help: Split is NOT required;
+    //  whole foot above the head is required. Touching is NOT required" (p. 87).
+    footAboveHead: { code: '2.1005', name: 'Back split balance without help', value: 0.5 },
+    requiredSplitDeg: 180,
+    verified: false,
+    ref: 'Balances #10 (p. 82-84), technique p. 86-87, table #11 row 10 (p. 89)',
+  },
+  ATTITUDE: {
+    box: '2.12',
+    // Table #11 row 12 "Attitude, also ring with help ..." (p. 89): 2.1202 = 0.20 for the
+    // plain attitude (0.30 / 0.40 are the ring variants, not detected).
+    plain: { code: '2.1202', name: 'Attitude balance', value: 0.2 },
+    // "Horizontal position of the free leg (thigh) and the maximum vertical position of
+    //  the body" (p. 87).
+    requiredThighDeg: 90,
+    verified: false,
+    ref: 'Balances #10 (p. 82-84), technique p. 87, table #11 row 12 (p. 89)',
+  },
+};
+
 /** Round to 2 decimals (scores are in hundredths). */
 export function round2(value) {
   return Math.round(value * 100) / 100;
