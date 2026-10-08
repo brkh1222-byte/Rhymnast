@@ -23,3 +23,39 @@ ACTION-NET repo: https://github.com/qinghuannn/ACTION-NET
 RG Code of Points 2025-2028 (mark-up, valid from 1 April 2025), from the FIG rules page:
 https://www.gymnastics.sport/publicdir/rules/files/en_1.1%20-%20RG%20Code%20of%20Points%202025-2028%20(mark-up)%20-%20valid%20from%201st%20April%202025.pdf
 Rules we implement are summarized with page numbers in `docs/rules.md`.
+
+## Validation photos (real people)
+Used to **check and tune** the rules, not to train anything. Never commit them: they are photos of
+real people, often minors. Keep them here locally and share them inside the team through a private
+shared drive.
+
+```
+data/validation/
+  front_split_help/   labels.csv + photos
+  front_split/        (without help)
+  back_split/         (without help, trunk upright, foot above head)
+  attitude/
+  not_these/          look-alikes and other shapes that must NOT be scored
+```
+
+`labels.csv` (optional, one per folder; the folder name is used when a photo has no row):
+
+```
+file,expected_shape,judge_deduction,notes
+ana_01.jpg,attitude,0.10,thigh slightly low
+ana_02.jpg,attitude,0,clean
+```
+
+- `expected_shape`: `front_split_help`, `front_split`, `back_split`, `attitude` or `none`
+- `judge_deduction`: what a judge deducts **for the shape only** (deviation bands: 0, 0.10, 0.30, 0.50,
+  or a sum such as 0.40 for thigh + trunk on an attitude). Leave empty if unknown.
+
+How to take them:
+- Camera **side-on** and level, at hip height; whole body in frame; both feet visible.
+- Capture the held position, not the way in or out.
+- For each element: some clean shapes **and** some with small, medium and large faults. The faults
+  are what test the deductions. At least 10 photos per element, from several people.
+
+Run them through <http://localhost:8000/tools/validate.html> (nothing is uploaded). It can export the
+body-point numbers (no images) as `web/tests/fixtures/real-balances.js`, which turns every photo into
+a permanent unit test.

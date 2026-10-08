@@ -4,5 +4,6 @@ import './splitLeap.test.js';
 import './passe.test.js';
 import './scoring.test.js';
 import './balances.test.js';
+import './realBalances.test.js';
 
 export { runAll } from './harness.js';

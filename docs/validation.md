@@ -16,11 +16,15 @@ and the full-size MediaPipe model.
 | Malate 2023 (34) | Ring balance with help | First run: "attitude" ❌ → fixed: not scored | ✅ after fix |
 | Carolina Pascual 02 | Split leap in the air | No balance | ✅ |
 | Oceania 2022 (0694) | Beam (artistic) | No balance | ✅ |
-| KurylskayaBall, 2014 Europeans 3 | — | No person found by MediaPipe | — |
+| 2014 Europeans 3 | Leg up behind, trunk far forward (row 11) | Not scored | ✅ (out of scope) |
+| KurylskayaBall | — | No person found by MediaPipe | — |
 
 Not yet checked on real photos: **attitude** and **back split without help (foot above head)**: no
 suitable Commons photo found. Both are covered by synthetic unit tests only. Next: record 5-10 side-on
 clips of each balance and compare with a judge.
+
+Re-run with `web/tools/validate.html` and a `labels.csv`: 10 / 10 photos match their label. Their
+landmarks are now unit tests in `web/tests/fixtures/real-balances.js` (numbers only, no images).
 
 Live check: the front-split photo fed as a camera for 1.5 s gave "Front split balance with help,
 DB 0.30, counted"; a second 0.6 s hold gave "repeat, E −0.30 not held 1 second".

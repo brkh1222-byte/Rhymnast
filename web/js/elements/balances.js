@@ -222,6 +222,29 @@ function hasHelp(lm, free, torso, s) {
     || distToSegment(h, free.ankle, free.toe ?? free.ankle) < limit);
 }
 
+// Names used in labels.csv and the validation tool for each recognized shape.
+const SHAPE_KEYS = {
+  frontSplitHelp: 'front_split_help',
+  frontSplit: 'front_split',
+  backSplitFootAboveHead: 'back_split',
+  attitude: 'attitude',
+};
+
+/** Label name for a measured shape ('none' when no balance is recognized). */
+export function shapeKey(shape) {
+  return shape ? SHAPE_KEYS[shape] : 'none';
+}
+
+/**
+ * Shape deduction for a single photo: the sum of the deviation-band penalties of all body
+ * segments (#2.5). Hold time and relevé can't be seen in a photo, so they are left out.
+ * null when no balance is recognized.
+ */
+export function photoDeduction(m) {
+  if (!m.shape) return null;
+  return round2(m.deviations.reduce((total, d) => total + deviationBand(d.deg).penalty, 0));
+}
+
 /** Turns one held balance into a judged event using the Code of Points. */
 export function judgeBalance(m, s = BALANCE_SETTINGS) {
   const durationMs = m.tEnd - m.tStart;

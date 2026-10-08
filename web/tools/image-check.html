@@ -24,17 +24,13 @@
     <pre id="out">Loading pose model…</pre>
   </main>
   <script type="module">
-    import { createPoseTracker } from '../js/pose.js';
-    import { splitAngle, minVisibility, LEG_POINTS, legLengthRatios } from '../js/geometry.js';
-    import { measurePasse } from '../js/elements/passe.js';
-    import { measureBalance } from '../js/elements/balances.js';
-    import { judgeSplitLeap, legsFullLength } from '../js/elements/splitLeap.js';
+    import { getImageTracker, landmarksFromImage, analyzeLandmarks } from '../js/tools/analyzeImage.js';
     import { drawSkeleton } from '../js/draw.js';
 
     const out = document.getElementById('out');
     const img = document.getElementById('img');
     const canvas = document.getElementById('overlay');
-    const tracker = await createPoseTracker('full', 'IMAGE');
+    await getImageTracker();
     out.textContent = 'Ready. Choose a photo.';
 
     async function analyze(src) {
@@ -42,36 +38,27 @@
       await img.decode();
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
-      const raw = tracker.detectImage(img);
-      if (!raw) {
-        drawSkeleton(canvas.getContext('2d'), null);
+      const lm = await landmarksFromImage(img);
+      drawSkeleton(canvas.getContext('2d'), lm);
+      if (!lm) {
         out.textContent = 'No person found.';
         window.result = { found: false };
         return;
       }
-      const lm = raw.map((p) => ({ x: p.x * img.naturalWidth, y: p.y * img.naturalHeight, visibility: p.visibility ?? 0 }));
-      drawSkeleton(canvas.getContext('2d'), lm);
-      const split = splitAngle(lm);
-      const visibility = minVisibility(lm, LEG_POINTS);
-      const legRatios = legLengthRatios(lm);
-      const verdict = judgeSplitLeap({
-        tStart: 0, tPeak: 0, tEnd: 0, flightMs: 0, peakSplitDeg: split, visibility,
-        sideOn: legsFullLength(legRatios),
-      });
-      const passe = measurePasse(lm);
-      const balance = measureBalance(lm);
-      window.result = { found: true, split, visibility, legRatios, verdict, passe, balance };
+      const a = analyzeLandmarks(lm);
+      const { leap, passe, balance } = a;
+      window.result = { found: true, ...a };
       out.textContent = [
-        `Split angle: ${split.toFixed(1)}°   (leg visibility ${visibility.toFixed(2)})`,
-        `If this is the peak of a split leap -> DB ${verdict.dbValid ? 'valid' : 'NOT valid'} ${verdict.dbValue.toFixed(2)}, ` +
-          `${verdict.penalties.map((p) => `E −${p.value.toFixed(2)} ${p.reason}`).join('; ') || 'no E penalty'}`,
-        ...verdict.warnings.map((w) => `⚠ ${w}`),
-        `Leg length / torso: ${legRatios.map((r) => r.toFixed(2)).join(', ')} (full length is about 1.8-2.1)`,
+        `Split angle: ${a.split.toFixed(1)}°   (leg visibility ${a.visibility.toFixed(2)})`,
+        `If this is the peak of a split leap -> DB ${leap.dbValid ? 'valid' : 'NOT valid'} ${leap.dbValue.toFixed(2)}, ` +
+          `${leap.penalties.map((p) => `E −${p.value.toFixed(2)} ${p.reason}`).join('; ') || 'no E penalty'}`,
+        ...leap.warnings.map((w) => `⚠ ${w}`),
+        `Leg length / torso: ${a.legRatios.map((r) => r.toFixed(2)).join(', ')} (full length is about 1.8-2.1)`,
         `Passé check: thigh ${passe.thighDeg.toFixed(0)}°, support knee ${passe.supportKneeDeg.toFixed(0)}°, in passé shape: ${passe.inShape}`,
-        `Balance shape: ${balance.shape ?? 'none'}` +
-          (balance.shape ? ` · ${balance.deviations.map((d) => `${d.label} ${Math.round(d.deg)}°`).join(', ')}` : '') +
-          ` · help ${balance.help} · relevé ${balance.releve} · facing ${balance.facing}` +
-          ` · free knee ${Math.round(balance.freeKnee ?? 0)}° · trunk ${Math.round(balance.trunk ?? 0)}°`,
+        `Balance shape: ${a.shape}` +
+          (balance.shape ? ` · ${balance.deviations.map((d) => `${d.label} ${Math.round(d.deg)}°`).join(', ')} · shape deduction ${a.deduction.toFixed(2)}` : '') +
+          (a.legsVisible ? ` · help ${balance.help} · relevé ${balance.releve} · facing ${balance.facing}` +
+            ` · free knee ${Math.round(balance.freeKnee ?? 0)}° · trunk ${Math.round(balance.trunk ?? 0)}°` : ' · legs not visible'),
       ].join('\n');
     }
 

@@ -86,6 +86,7 @@ web/
   js/scoring.js              D / E / A / final, top-8, repetitions, judge overrides, audit export
   tests/                     unit tests (no dependencies)
   tools/image-check.html     measure angles on a single photo (for validating rules)
+  tools/validate.html        check labeled photo folders against the app; export them as tests
 docs/rules.md                rules we automate, quoted from the Code with page numbers
 data/README.md               where to get clips and datasets (nothing in data/ is committed)
 ```
@@ -102,6 +103,10 @@ Or open <http://localhost:8000/tests/> in a browser while the server runs.
 
 To check a rule on a real photo, open <http://localhost:8000/tools/image-check.html> and pick an
 image (e.g. the peak frame of a leap).
+
+To check many labeled photos at once (e.g. a teammate's attitudes), follow "Validation photos" in
+`data/README.md` and open <http://localhost:8000/tools/validate.html>. Nothing is trained: the photos
+show whether the rules agree with a judge, and their landmarks (no images) become unit tests.
 
 ## Adding an element
 
