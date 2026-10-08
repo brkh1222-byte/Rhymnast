@@ -8,7 +8,12 @@ browser) finds her joints in every frame. **Rules from the FIG Code of Points** 
 > Decision support, not a replacement for judges. Every call shows the measured angle, the rule and
 > page it comes from, and a confidence, and can be rejected. Export the audit log as JSON.
 
-## Run it (no install needed)
+## Live demo
+
+**<https://brkh1222-byte.github.io/Rhymnast/>** (deployed from `main` by `.github/workflows/pages.yml`
+after the tests pass). The first load downloads the pose model (about 10 MB). Video stays on your device.
+
+## Run it locally (no install needed)
 
 Requires Python 3 (preinstalled on macOS) and Chrome, Edge or Safari. Internet is needed on first
 load: the pose model is downloaded from Google's CDN.
