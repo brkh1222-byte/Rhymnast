@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rhymnast Unit Tests</title>
+  <style>
+    :root { --bg: #fff; --text: #111; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #111; --text: #eee; } }
+    body { background: var(--bg); color: var(--text); font: 14px/1.5 ui-monospace, Menlo, monospace; padding: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Unit tests</h1>
+  <pre id="out"></pre>
+  <script type="module">
+    import { runAll } from './all.js';
+    const out = document.getElementById('out');
+    const failed = runAll((line) => { out.textContent += line + '\n'; });
+    document.title = failed ? `FAILED (${failed})` : 'All tests passed';
+  </script>
+</body>
+</html>

@@ -41,9 +41,13 @@ Known limits (be honest in the UI and README):
 - Never commit videos, model weights or datasets. Use .gitignore and a `data/README.md` explaining how to download them.
 
 ## Decisions (made 2026-10-08)
-1. **Pose inference: in the browser** with MediaPipe Pose Landmarker (`@mediapipe/tasks-vision`). No backend.
-   Frontend: Vite + React + TypeScript in `web/`.
-2. **Elements, in build order:** split leap (first, end to end) → balances (passé, arabesque) → simple pivot.
+1. **Pose inference: in the browser** with MediaPipe Pose Landmarker (`@mediapipe/tasks-vision@0.10.14`,
+   pinned CDN). No backend.
+   Frontend: **plain ES modules, no build step, no npm** in `web/` (changed from Vite+React on 2026-10-08:
+   Node isn't installed on the dev machine, and plain JS is easier for the junior team). Run with
+   `python3 -m http.server`. Tests: `web/tests/run.sh` (macOS JavaScriptCore) or `web/tests/` in a browser.
+2. **Elements built:** split leap (1.2103), passé balance (2.101), passé pivot (3.101).
+   Next: arabesque/side-split balances (value columns need human check), landing faults.
    Ring jump/balance is a stretch goal (hard to measure from one 2D camera).
 3. **AQA layer dropped** for the 2-week build. Findings from the Phase 0 repo check:
    - CoFInAl: only one checkpoint (`Ball_best.pkl`), trained on Total score (not E), Spearman ≈ 0.81.
@@ -57,7 +61,9 @@ them with the FIG Code of Points. Example: split leap needs a 180° split at the
 Rule values live in data with a CoP page reference, never as magic numbers in code.
 
 **2D limit:** one camera measures angles in the image plane. A split angle is only reliable when the camera
-is side-on to the split. Show this in the UI and skip low-visibility frames.
+is side-on to the split. We detect this from **leg foreshortening** (each leg should look ~1.8-2.1 torso
+lengths), not body width: gymnasts open shoulders/hips to the audience even when the legs are side-on.
+Show warnings in the UI and skip low-visibility frames.
 
 ## Open decisions (ask the user before assuming)
 - None right now.

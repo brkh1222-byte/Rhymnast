@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pose Image Check</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .wrap { position: relative; display: inline-block; max-width: 100%; }
+    .wrap img, .wrap canvas { display: block; max-width: 100%; height: auto; }
+    .wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Pose image check</h1>
+    <p class="note">Developer tool for validating rules on single photos (e.g. the peak frame of a leap).
+      Pick a photo; it measures the split and passé angles with the same code the live app uses.
+      Nothing is uploaded.</p>
+    <p><input id="file" type="file" accept="image/*"></p>
+    <div class="wrap"><img id="img" alt=""><canvas id="overlay"></canvas></div>
+    <pre id="out">Loading pose model…</pre>
+  </main>
+  <script type="module">
+    import { createPoseTracker } from '../js/pose.js';
+    import { splitAngle, minVisibility, LEG_POINTS, legLengthRatios } from '../js/geometry.js';
+    import { measurePasse } from '../js/elements/passe.js';
+    import { judgeSplitLeap, legsFullLength } from '../js/elements/splitLeap.js';
+    import { drawSkeleton } from '../js/draw.js';
+
+    const out = document.getElementById('out');
+    const img = document.getElementById('img');
+    const canvas = document.getElementById('overlay');
+    const tracker = await createPoseTracker('full', 'IMAGE');
+    out.textContent = 'Ready. Choose a photo.';
+
+    async function analyze(src) {
+      img.src = src;
+      await img.decode();
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const raw = tracker.detectImage(img);
+      if (!raw) {
+        drawSkeleton(canvas.getContext('2d'), null);
+        out.textContent = 'No person found.';
+        window.result = { found: false };
+        return;
+      }
+      const lm = raw.map((p) => ({ x: p.x * img.naturalWidth, y: p.y * img.naturalHeight, visibility: p.visibility ?? 0 }));
+      drawSkeleton(canvas.getContext('2d'), lm);
+      const split = splitAngle(lm);
+      const visibility = minVisibility(lm, LEG_POINTS);
+      const legRatios = legLengthRatios(lm);
+      const verdict = judgeSplitLeap({
+        tStart: 0, tPeak: 0, tEnd: 0, flightMs: 0, peakSplitDeg: split, visibility,
+        sideOn: legsFullLength(legRatios),
+      });
+      const passe = measurePasse(lm);
+      window.result = { found: true, split, visibility, legRatios, verdict, passe };
+      out.textContent = [
+        `Split angle: ${split.toFixed(1)}°   (leg visibility ${visibility.toFixed(2)})`,
+        `If this is the peak of a split leap -> DB ${verdict.dbValid ? 'valid' : 'NOT valid'} ${verdict.dbValue.toFixed(2)}, ` +
+          `${verdict.penalties.map((p) => `E −${p.value.toFixed(2)} ${p.reason}`).join('; ') || 'no E penalty'}`,
+        ...verdict.warnings.map((w) => `⚠ ${w}`),
+        `Leg length / torso: ${legRatios.map((r) => r.toFixed(2)).join(', ')} (full length is about 1.8-2.1)`,
+        `Passé check: thigh ${passe.thighDeg.toFixed(0)}°, support knee ${passe.supportKneeDeg.toFixed(0)}°, in passé shape: ${passe.inShape}`,
+      ].join('\n');
+    }
+
+    document.getElementById('file').addEventListener('change', (e) => {
+      const f = e.target.files?.[0];
+      if (f) analyze(URL.createObjectURL(f));
+    });
+    // Dev convenience: tools/image-check.html?src=<same-origin image path>
+    const src = new URLSearchParams(location.search).get('src');
+    if (src) analyze(src);
+  </script>
+</body>
+</html>

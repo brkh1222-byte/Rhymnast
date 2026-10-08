@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rhymnast Judging Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Rhymnast</h1>
+      <p class="sub">AI judging assistant for rhythmic gymnastics · body difficulties &amp; technical execution</p>
+    </div>
+    <div class="final">
+      <span class="final-label">Final score</span>
+      <span class="final-value" id="final">0.00</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage-col">
+      <div class="controls">
+        <button id="btn-camera" class="primary">Start camera</button>
+        <label class="button">
+          Load video…
+          <input id="file-input" type="file" accept="video/*" hidden>
+        </label>
+        <button id="btn-judge" disabled>Start judging</button>
+        <button id="btn-reset">New routine</button>
+        <label class="select">
+          Model
+          <select id="model-select">
+            <option value="full" selected>Full (accurate)</option>
+            <option value="lite">Lite (faster)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="stage-msg" id="stage-msg">
+          Start the camera or load a competition clip.<br>
+          <small>Film the gymnast <strong>side-on</strong>, whole body in view.</small>
+        </div>
+        <div class="judging-badge" id="judging-badge" hidden>● JUDGING</div>
+      </div>
+
+      <div class="chips" id="chips">
+        <span class="chip"><b id="fps">–</b> FPS</span>
+        <span class="chip">Legs <b id="view">–</b></span>
+        <span class="chip">Split <b id="split">–</b></span>
+        <span class="chip">Passé thigh <b id="thigh">–</b></span>
+        <span class="chip">Relevé <b id="releve">–</b></span>
+        <span class="chip">State <b id="state">–</b></span>
+      </div>
+
+      <p class="note">
+        Detected now: <strong>split leap</strong> (1.2103, 0.30), <strong>passé balance</strong> (2.101, 0.10),
+        <strong>passé pivot</strong> (3.101, 0.10 + 0.10 per extra turn), with the Code of Points shape
+        deviations (≤10° −0.10, 11–20° −0.30, &gt;20° −0.50 and DB not valid) and the 1-second hold rule.
+        Apparatus difficulties, dance steps, R elements and apparatus faults are <strong>not</strong> detected:
+        judges add those below.
+      </p>
+    </section>
+
+    <aside class="panel-col">
+      <section class="card scores">
+        <div class="score"><span>D</span><b id="score-d">0.00</b><small id="score-d-detail">AI 0.00</small></div>
+        <div class="score"><span>E</span><b id="score-e">10.00</b><small id="score-e-detail">AI −0.00</small></div>
+        <div class="score"><span>A</span><b id="score-a">0.00</b><small>judges</small></div>
+      </section>
+
+      <section class="card">
+        <h2>Judge panel</h2>
+        <div class="inputs">
+          <label>Artistry (A) <input id="in-artistry" type="number" min="0" max="10" step="0.05" value="0"></label>
+          <label>Extra D (apparatus, R, steps) <input id="in-extra-d" type="number" min="0" step="0.1" value="0"></label>
+          <label>Extra E deductions <input id="in-extra-e" type="number" min="0" step="0.1" value="0"></label>
+          <label>Penalties (time, line…) <input id="in-penalties" type="number" min="0" step="0.05" value="0"></label>
+        </div>
+        <p class="hint">Untick an element below to reject the AI's call. Final = D + A + E − penalties.</p>
+        <button id="btn-export">Export audit log (JSON)</button>
+      </section>
+
+      <section class="card">
+        <h2>Elements <span class="count" id="event-count">0</span></h2>
+        <ol class="events" id="events">
+          <li class="empty">No elements yet. Press <b>Start judging</b>, then perform.</li>
+        </ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    Decision support, not a replacement for judges. Rules: FIG Rhythmic Gymnastics Code of Points 2025–2028.
+    Single-camera 2D measurement: angles are reliable only when the camera is side-on to the movement.
+    Video stays on this device; nothing is uploaded.
+  </footer>
+</body>
+</html>

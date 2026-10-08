@@ -1,0 +1,101 @@
+# Rhymnast: AI judging assistant for rhythmic gymnastics
+
+A gymnast performs in front of a camera. A **pretrained pose model** (Google MediaPipe Pose, in the
+browser) finds her joints in every frame. **Rules from the FIG Code of Points** measure the shapes
+(e.g. "split leap needs 180° at the highest point") and suggest **Difficulty (D)** values and
+**Execution (E)** deductions in real time. Human judges enter **Artistry (A)** and can reject any AI call.
+
+> Decision support, not a replacement for judges. Every call shows the measured angle, the rule and
+> page it comes from, and a confidence, and can be rejected. Export the audit log as JSON.
+
+## Run it (no install needed)
+
+Requires Python 3 (preinstalled on macOS) and Chrome, Edge or Safari. Internet is needed on first
+load: the pose model is downloaded from Google's CDN.
+
+```sh
+cd web
+python3 -m http.server 8000
+```
+
+Open <http://localhost:8000>, then:
+
+1. **Start camera** (allow access) or **Load video…** to judge a recorded routine.
+2. Place the camera **side-on** to the gymnast, with her whole body in view. The "Legs" chip should say
+   *full length* during splits.
+3. Press **Start judging** and perform. Elements appear on the right as they are detected.
+4. Judges enter Artistry, extra D (apparatus, R, dance steps), extra E and penalties.
+   Untick any AI call they disagree with.
+5. **Export audit log (JSON)** for the record.
+
+The camera only works on `localhost` or HTTPS (browser rule). To use it from another device, serve
+`web/` over HTTPS (any static host works: it's plain HTML/JS/CSS).
+
+## What it judges
+
+| Element | Code | D value | Automated E deductions |
+|---|---|---|---|
+| Split leap | 1.2103 | 0.30 | Shape deviation from 180°: ≤10° −0.10, 11–20° −0.30, >20° −0.50 and DB not valid |
+| Passé balance | 2.101 | 0.10 (−0.10 on flat foot) | Thigh below horizontal (same bands); held < 1 s −0.30 |
+| Passé pivot | 3.101 | 0.10 + 0.10 per extra 360° | Thigh below horizontal (same bands); < 360° not valid |
+
+Scoring follows the Code: **Final = D + A + E − penalties**, highest 8 body difficulties count, a
+repeated difficulty counts once but its execution faults are still deducted.
+Rule text, page numbers and how each value was checked: [`docs/rules.md`](docs/rules.md).
+
+**Not automated** (judges add these by hand): apparatus difficulties (DA), R elements, dance steps,
+apparatus handling faults, artistry, other body difficulties.
+
+## Known limits
+
+- **One camera = 2D angles.** Splits are measured correctly only when the camera is side-on to the
+  split. If a leg points toward the camera it looks shorter; the app detects this and warns
+  ("leg foreshortened, angle unreliable").
+- MediaPipe sometimes **misses unusual poses** (deep back bends, inverted shapes). Those frames are not
+  scored. In our photo checks it found 4 of 6 competition gymnasts.
+- Pivot rotations are counted from how wide the body looks (±45°). Relevé is not checked during pivots.
+- The Code says angle limits are "a guideline" for judges. The app shows the measurement and a
+  suggested band; judges decide.
+- Validated so far on synthetic skeletons (unit tests) and competition photos, **not yet on judged
+  video**. See PLAN.md Phase 4.
+
+## Project layout
+
+```
+web/
+  index.html, styles.css     the judging page
+  js/app.js                  wiring: video -> pose -> smoothing -> detectors -> scoreboard -> UI
+  js/pose.js                 MediaPipe Pose Landmarker (pretrained, pinned CDN version)
+  js/geometry.js             angles on landmarks (split, thigh elevation, leg foreshortening)
+  js/oneEuro.js              jitter filter for landmarks
+  js/rules.js                Code of Points values, each with a page reference
+  js/elements/splitLeap.js   leap state machine + 180° rule
+  js/elements/passe.js       passé balance (1 s hold, relevé) and pivot (rotation count)
+  js/scoring.js              D / E / A / final, top-8, repetitions, judge overrides, audit export
+  tests/                     unit tests (no dependencies)
+  tools/image-check.html     measure angles on a single photo (for validating rules)
+docs/rules.md                rules we automate, quoted from the Code with page numbers
+data/README.md               where to get clips and datasets (nothing in data/ is committed)
+```
+
+No build step and no npm packages: plain ES modules, so juniors can read and change everything.
+
+## Tests
+
+```sh
+./web/tests/run.sh          # macOS: uses the built-in JavaScriptCore, nothing to install
+```
+
+Or open <http://localhost:8000/tests/> in a browser while the server runs.
+
+To check a rule on a real photo, open <http://localhost:8000/tools/image-check.html> and pick an
+image (e.g. the peak frame of a leap).
+
+## Adding an element
+
+1. Quote the rule and value from the Code of Points in `docs/rules.md` with the page number.
+2. Add its values to `ELEMENTS` in `web/js/rules.js`.
+3. Write a detector in `web/js/elements/` with an `update({ t, lm })` method that calls
+   `onEvent(event)`. Copy the event shape from `judgeSplitLeap` in `splitLeap.js`.
+4. Add synthetic-pose tests in `web/tests/` and register the file in `tests/all.js`.
+5. Wire it in `web/js/app.js` next to the other detectors.
