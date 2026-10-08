@@ -1,0 +1,20 @@
+# Runs the unit tests on every push and pull request.
+# Deployment is done by Vercel from main (see vercel.json), not by this workflow.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # macOS has JavaScriptCore built in, so web/tests/run.sh needs no installs (same as locally).
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: ./web/tests/run.sh

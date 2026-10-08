@@ -54,6 +54,11 @@ Known limits (be honest in the UI and README):
      Needs pre-extracted Video Swin-B features (mmaction2), offline only. No license.
    - CaFlow: no trained weights at all; you must train it yourself. No license.
 
+4. **Hosting: Vercel (Hobby plan), repo private.** GitHub Pages dropped when the repo went private.
+   `vercel.json` serves `web/` with no build. Tests run in `.github/workflows/tests.yml`.
+   Hobby is non-commercial: move to Vercel Pro once the startup uses it commercially.
+5. **No open-source license for now.** The team plans a startup; decide licensing later.
+
 ## How scoring works
 The pretrained pose model gives body joints. **Our own rules** measure angles on those joints and compare
 them with the FIG Code of Points. Example: split leap needs a 180° split at the highest point. Deviation

@@ -10,8 +10,9 @@ browser) finds her joints in every frame. **Rules from the FIG Code of Points** 
 
 ## Live demo
 
-**<https://brkh1222-byte.github.io/Rhymnast/>** (deployed from `main` by `.github/workflows/pages.yml`
-after the tests pass). The first load downloads the pose model (about 10 MB). Video stays on your device.
+**Live URL: added after the first Vercel deploy.** Vercel deploys `web/` from `main` on every push
+(settings in `vercel.json`, no build step); GitHub Actions runs the tests. The first load downloads
+the pose model (about 10 MB). Video stays on your device.
 
 ## Run it locally (no install needed)
 
