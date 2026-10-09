@@ -77,6 +77,19 @@ Recognizing WHICH pose it is and measuring HOW FAR it is from the rulebook are s
 - Front vs back split with the leg near vertical: decided by the trunk (front splits stay upright or
   lean back; back splits lean forward), checked on competition photos.
 
+## Fair judging: how the app avoids over-deducting
+The Code says the angles are "just a guideline. Judges will learn to think in terms of small, medium,
+and large deductions" (p. 26). The app follows the bands, but does not punish camera noise:
+- **3° camera margin:** one 2D camera measures joint angles to about ±3°, so the first 3° of a measured
+  deviation are not deducted (`MEASUREMENT_MARGIN_DEG` in `web/js/rules.js`). Example: split measured
+  8° short → judged 5° → small (−0.10); measured 2° short → no deduction.
+- **One balance = one judgment:** a hold is not split into several moves by tracking noise. Front split
+  with/without help (same table box) is one hold, decided by majority; another shape must last 0.25 s
+  before the hold switches; tracking dropouts up to 0.4 s don't end the hold. Before this fix one
+  balance could get "not held 1 second" (−0.30) plus a repeat.
+- **Median over the hold:** each segment's deviation is the median of all frames of the hold, so the
+  entry and exit frames don't count against the gymnast.
+
 ## Balances: shared rules ✅
 - On the foot: "Defined and clearly fixed shape" and "Stop position fixed in the shape for a minimum
   of 1 second" (#10.1.2, p. 82) ✅
@@ -108,6 +121,17 @@ Recognizing WHICH pose it is and measuring HOW FAR it is from the rulebook are s
   the highest eye/ear/nose point + 0.2 torso lengths.
 - Back split **with** help and trunk-forward back splits (row 11) are not scored: in 2D they look like a
   front split with the trunk bent back (seen on a competition photo).
+
+## Back split balance, trunk forward: row 11, code 2.1104, value 0.40 ⚠️ value
+- Table #11 row 11 "Back split with or without help, trunk forward at the horizontal or below, or with
+  ring without help" lists 2.1104 (0.40) and 2.1106 (0.60, ring) (p. 89). ⚠️ We assume the plain back
+  split with the trunk forward = 0.40.
+- The balance pages give no separate technique text for this row; the matching rotation (p. 97)
+  defines the shape: "Split position required. The trunk should remain at the horizontal or below."
+- Added 2026-10-09: the team's "back split without help" video shows this shape (trunk 105-110°
+  from vertical, i.e. just below horizontal, legs in a 180° line).
+- **Measured as:** free leg backward and straight, leg up, trunk lean ≥ 65° forward. Two segments:
+  **split** deviation = 180° − split; **trunk** deviation = degrees the trunk is above horizontal.
 
 ## Attitude balance: row 12, code 2.1202, value 0.20 ⚠️ value
 - Technique: "Attitude · Horizontal position of the free leg (thigh) and the maximum vertical position

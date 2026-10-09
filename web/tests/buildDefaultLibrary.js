@@ -49,6 +49,7 @@ export function buildDefaultLibrary({ includePhotos = true, perPose = 160, perNe
   add('frontSplitHelp', () => frontSplitBalance({ ...common(), help: true, splitDeg: between(155, 188), trunkTilt: between(-40, 10) }), perPose);
   add('frontSplit', () => frontSplitBalance({ ...common(), help: false, splitDeg: between(155, 188), trunkTilt: between(-40, 10) }), perPose);
   add('backSplitFootAboveHead', () => backSplitBalance({ ...common(), legDeg: between(130, 178), trunkTilt: between(12, 50) }), perPose);
+  add('backSplitTrunkForward', () => backSplitBalance({ ...common(), legDeg: between(150, 186), trunkTilt: between(70, 125) }), perPose);
   add('attitude', () => attitudeBalance({ ...common(), thighDeg: between(65, 115), kneeDeg: between(70, 125), trunkTilt: between(0, 30) }), perPose);
 
   // ---------- Not one of these ----------
@@ -58,7 +59,6 @@ export function buildDefaultLibrary({ includePhotos = true, perPose = 160, perNe
   add('none', () => attitudeBalance({ ...common(), help: true, thighDeg: between(90, 140), kneeDeg: between(40, 90) }), perNegative); // ring with help
   add('none', () => attitudeBalance({ ...common(), thighDeg: between(125, 150), kneeDeg: between(35, 60) }), perNegative); // ring without help
   add('none', () => backSplitBalance({ ...common(), help: true, legDeg: between(150, 178), trunkTilt: between(12, 60) }), perNegative); // back split with help
-  add('none', () => backSplitBalance({ ...common(), legDeg: between(140, 178), trunkTilt: between(70, 100) }), perNegative); // trunk forward (row 11)
   add('none', () => frontSplitBalance({ ...common(), help: pick(true, false), splitDeg: between(165, 195), trunkTilt: between(-85, -55) }), perNegative); // trunk bent back
   add('none', () => frontSplitBalance({ ...common(), help: false, splitDeg: between(80, 115) }), perNegative); // leg forward at horizontal
 

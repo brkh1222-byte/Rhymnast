@@ -14,7 +14,7 @@ import {
   LM, LEG_POINTS, bodyWidthRatio, dist, isOnReleve, jointAngle, legPoints, minVisibility,
   thighElevation,
 } from '../geometry.js';
-import { ELEMENTS, deviationBand, round2 } from '../rules.js';
+import { ELEMENTS, judgedBand, round2 } from '../rules.js';
 
 export const PASSE_SETTINGS = {
   minVisibility: 0.5,
@@ -147,17 +147,17 @@ export function measurePasse(lm, s = PASSE_SETTINGS) {
 /** Decides balance vs pivot vs nothing, and judges it with the Code of Points. */
 export function classifyPasse(m, s = PASSE_SETTINGS) {
   const durationMs = m.tEnd - m.tStart;
-  const deviation = deviationBand(90 - m.thighDeg);
+  const deviation = judgedBand(90 - m.thighDeg);
   const shapePenalty = deviation.penalty > 0
     ? [{
-      reason: `Passé shape: ${deviation.band} deviation (thigh ${deviation.deg}° below horizontal)`,
+      reason: `Passé shape: ${deviation.band} deviation (thigh ${deviation.measuredDeg}° below horizontal, ${deviation.deg}° after the 3° camera margin)`,
       value: deviation.penalty,
       ref: deviation.ref,
     }]
     : [];
   const measurements = {
     thighDeg: Math.round(m.thighDeg),
-    deviationDeg: deviation.deg,
+    deviationDeg: deviation.measuredDeg,
     band: deviation.band,
     holdMs: Math.round(durationMs),
     rotationDeg: m.rotationDeg,

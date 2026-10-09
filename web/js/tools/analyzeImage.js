@@ -5,7 +5,8 @@ import { createPoseTracker } from '../pose.js';
 import { LEG_POINTS, legLengthRatios, minVisibility, splitAngle } from '../geometry.js';
 import { judgeSplitLeap, legsFullLength } from '../elements/splitLeap.js';
 import { measurePasse } from '../elements/passe.js';
-import { BALANCE_SETTINGS, measureBalance, photoDeduction, shapeKey } from '../elements/balances.js';
+import { measureBalance, photoDeduction, shapeKey } from '../elements/balances.js';
+import { legsUsable } from '../elements/balanceFrame.js';
 
 let trackerPromise = null;
 
@@ -37,8 +38,8 @@ export function analyzeLandmarks(lm, library) {
     tStart: 0, tPeak: 0, tEnd: 0, flightMs: 0, peakSplitDeg: split, visibility,
     sideOn: legsFullLength(legRatios),
   });
-  // Same visibility rule as the live detector: legs we can't see are not judged.
-  const legsVisible = visibility >= BALANCE_SETTINGS.minVisibility;
+  // Same rule as the live detector: legs we can't measure are not judged.
+  const legsVisible = legsUsable(lm).ok;
   const balance = legsVisible ? measureBalance(lm, undefined, library) : { shape: null, deviations: [] };
   return {
     visibility,

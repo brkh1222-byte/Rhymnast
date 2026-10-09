@@ -2,7 +2,7 @@
 //   - the live panel: recognized pose, match, hold timer, live measurement and deduction, or a hint
 //   - a card after every judged move: "Attitude balance · E −0.30"
 
-import { deviationBand, round2 } from '../rules.js';
+import { judgedBand, round2 } from '../rules.js';
 import { el, minus } from './format.js';
 
 /**
@@ -39,11 +39,11 @@ export function renderHud(hud, live, extra = {}) {
 
   hud.measure.textContent = live.deviations
     .map((d) => {
-      const band = deviationBand(d.deg);
-      return band.deg === 0 ? `${d.label.split(' ')[0]} ✓` : `${d.label} ${band.deg}°`;
+      const band = judgedBand(d.deg);
+      return band.penalty === 0 ? `${d.label.split(' ')[0]} ✓` : `${d.label} ${band.measuredDeg}°`;
     })
     .join(' · ');
-  const now = round2(live.deviations.reduce((sum, d) => sum + deviationBand(d.deg).penalty, 0));
+  const now = round2(live.deviations.reduce((sum, d) => sum + judgedBand(d.deg).penalty, 0));
   hud.deduction.textContent = now === 0 ? 'E −0.00 so far' : `E ${minus(now)} so far`;
   hud.deduction.className = `hud-deduction ${now === 0 ? 'good' : now >= 0.5 ? 'bad' : 'warn'}`;
 }

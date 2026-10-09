@@ -9,7 +9,7 @@
 import {
   LM, LEG_POINTS, legLengthRatios, minVisibility, mid, splitAngle, torsoLength,
 } from '../geometry.js';
-import { ELEMENTS, deviationBand } from '../rules.js';
+import { ELEMENTS, judgedBand } from '../rules.js';
 
 const RULE = ELEMENTS.SPLIT_LEAP;
 
@@ -120,10 +120,10 @@ export class SplitLeapDetector {
 
 /** Turns a measured leap into a judged event using the Code of Points. */
 export function judgeSplitLeap(m) {
-  const deviation = deviationBand(RULE.requiredSplitDeg - m.peakSplitDeg);
+  const deviation = judgedBand(RULE.requiredSplitDeg - m.peakSplitDeg);
   const penalties = deviation.penalty > 0
     ? [{
-      reason: `Split shape: ${deviation.band} deviation (${deviation.deg}° short of 180°)`,
+      reason: `Split shape: ${deviation.band} deviation (${deviation.measuredDeg}° short of 180°, ${deviation.deg}° after the 3° camera margin)`,
       value: deviation.penalty,
       ref: deviation.ref,
     }]
@@ -143,7 +143,7 @@ export function judgeSplitLeap(m) {
     penalties,
     measurements: {
       peakSplitDeg: Math.round(m.peakSplitDeg),
-      deviationDeg: deviation.deg,
+      deviationDeg: deviation.measuredDeg,
       band: deviation.band,
       flightMs: Math.round(m.flightMs),
     },

@@ -7,12 +7,13 @@ import { FEATURES } from './signature.js';
 export const LIBRARY_VERSION = 1;
 
 // Pose labels. 'none' examples teach the library what to reject (standing, passé, arabesque…).
-export const POSES = ['frontSplitHelp', 'frontSplit', 'backSplitFootAboveHead', 'attitude', 'none'];
+export const POSES = ['frontSplitHelp', 'frontSplit', 'backSplitFootAboveHead', 'backSplitTrunkForward', 'attitude', 'none'];
 
 export const POSE_NAMES = {
   frontSplitHelp: 'Front split with help',
   frontSplit: 'Front split without help',
-  backSplitFootAboveHead: 'Back split without help',
+  backSplitFootAboveHead: 'Back split, foot above head',
+  backSplitTrunkForward: 'Back split, trunk forward',
   attitude: 'Attitude',
   none: 'Not one of these',
 };

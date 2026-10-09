@@ -17,7 +17,8 @@ the pose model (about 10 MB). Video stays on your device.
 ## Run it locally (no install needed)
 
 Requires Python 3 (preinstalled on macOS) and Chrome, Edge or Safari. Internet is needed on first
-load: the pose model is downloaded from Google's CDN.
+load: the pose model is downloaded from Google's CDN (the default "Heavy" model is 30 MB, about 30 s
+the first time; the browser keeps it afterwards). If FPS stays under 15, switch the Model menu to Full.
 
 ```sh
 cd web
@@ -51,6 +52,7 @@ The camera only works on `localhost` or HTTPS (browser rule). To use it from ano
 | Passé pivot | 3.101 | 0.10 + 0.10 per extra 360° | Thigh below horizontal (same bands); < 360° not valid |
 | **Front split balance with help** | 2.303 | 0.30 ⚠️ (without help: 2.305, 0.50 ⚠️) | Split short of 180° (bands); held < 1 s −0.30; flat foot −0.10 |
 | **Back split balance without help** | 2.1005 | 0.50 ⚠️ | Whole foot not above the head (bands, in degrees); held < 1 s −0.30; flat foot −0.10 |
+| **Back split balance, trunk forward** | 2.1104 | 0.40 ⚠️ | Split short of 180° and trunk above horizontal, each its own band; held < 1 s −0.30; flat foot −0.10 |
 | **Attitude balance** | 2.1202 | 0.20 ⚠️ | Thigh below horizontal and trunk not vertical, each its own band; held < 1 s −0.30; flat foot −0.10 |
 
 ⚠️ = balance value read from the table by row order; a teammate must confirm it against the
@@ -78,6 +80,11 @@ geometry, so it can always be explained with the Code of Points. Details: `docs/
 - MediaPipe sometimes **misses unusual poses** (deep back bends, inverted shapes). Those frames are not
   scored. In our photo checks it found 4 of 6 competition gymnasts.
 - Pivot rotations are counted from how wide the body looks (±45°). Relevé is not checked during pivots.
+- Deductions start after a **3° camera margin** (the camera can't measure more precisely); see
+  `docs/rules.md` → "Fair judging".
+- Dark clothes in front of a dark background make the pose model unsure about the raised leg. The app
+  still uses the leg when its shape is plausible and marks the call "low confidence". Best results:
+  plain, light background and clothes that contrast with it.
 - The Code says angle limits are "a guideline" for judges. The app shows the measurement and a
   suggested band; judges decide.
 - Validated so far on synthetic skeletons (unit tests) and competition photos, **not yet on judged
@@ -103,6 +110,7 @@ web/
   tests/                     unit tests (no dependencies)
   tools/image-check.html     measure angles on a single photo (for validating rules)
   tools/validate.html        check labeled photo folders against the app; export them as tests
+  tools/video-analyze.html   step through a recorded video: what is recognized when, and why not
 docs/rules.md                rules we automate, quoted from the Code with page numbers
 data/README.md               where to get clips and datasets (nothing in data/ is committed)
 ```

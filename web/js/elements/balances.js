@@ -1,6 +1,7 @@
 // Balance detector for three held shapes (CoP #10 balances, table #11):
 //   - front split, with or without help             (row 3: "Split is required")
 //   - back split without help, trunk upright         (row 10: "whole foot above the head is required")
+//   - back split, trunk forward at/below horizontal   (row 11: split required, trunk horizontal or below)
 //   - attitude                                       (row 12: thigh horizontal, body vertical)
 //
 // Two separate questions per frame:
@@ -17,8 +18,8 @@
 // split with the trunk bent back, ring balances. Film side-on.
 
 import { LEG_POINTS, minVisibility } from '../geometry.js';
-import { BALANCES, BALANCE_RULES, deviationBand, round2 } from '../rules.js';
-import { BALANCE_SETTINGS, balanceFrame } from './balanceFrame.js';
+import { BALANCES, BALANCE_RULES, judgedBand, round2 } from '../rules.js';
+import { BALANCE_SETTINGS, balanceFrame, legsUsable } from './balanceFrame.js';
 import { poseSignature } from '../library/signature.js';
 
 export { BALANCE_SETTINGS } from './balanceFrame.js';
@@ -27,10 +28,21 @@ export { BALANCE_SETTINGS } from './balanceFrame.js';
 export const SHAPES = {
   frontSplitHelp: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withHelp, label: 'Front split · help' },
   frontSplit: { rule: BALANCES.FRONT_SPLIT, variant: BALANCES.FRONT_SPLIT.withoutHelp, label: 'Front split' },
-  backSplitFootAboveHead: { rule: BALANCES.BACK_SPLIT, variant: BALANCES.BACK_SPLIT.footAboveHead, label: 'Back split' },
+  backSplitFootAboveHead: { rule: BALANCES.BACK_SPLIT, variant: BALANCES.BACK_SPLIT.footAboveHead, label: 'Back split · foot above head' },
+  backSplitTrunkForward: { rule: BALANCES.BACK_SPLIT_TRUNK_FORWARD, variant: BALANCES.BACK_SPLIT_TRUNK_FORWARD.plain, label: 'Back split · trunk forward' },
   attitude: { rule: BALANCES.ATTITUDE, variant: BALANCES.ATTITUDE.plain, label: 'Attitude' },
 };
 const FOCUS_POSES = Object.keys(SHAPES);
+
+// Shapes from the same table box are one hold: front split with and without help differ only by
+// the hand, which can flicker frame to frame. The variant is decided by majority when judged.
+const FAMILY = {
+  frontSplitHelp: 'frontSplit',
+  frontSplit: 'frontSplit',
+  backSplitFootAboveHead: 'backSplit',
+  backSplitTrunkForward: 'backSplitTrunkForward',
+  attitude: 'attitude',
+};
 
 // The pose library used for recognition (set by the app; tests pass their own).
 let activeLibrary = null;
@@ -56,33 +68,38 @@ export class BalanceDetector {
 
   reset() {
     this.segment = null;
+    this.candidate = null; // a different shape seen during a hold, not yet long enough to switch
     this.live = { shape: null, label: null, mainDeg: null, holdMs: 0, deduction: null, hint: null };
   }
 
   /** @param frame { t: ms, lm: landmarks in pixels or null (nobody visible), airborne } */
   update({ t, lm, airborne = false }) {
     let m;
+    const legs = legsUsable(lm, this.s);
     if (!lm) m = { shape: null, deviations: [], hint: 'Step into the camera view' };
     else if (airborne) m = { shape: null, deviations: [], hint: null };
-    else if (minVisibility(lm, LEG_POINTS) < this.s.minVisibility) {
-      m = { shape: null, deviations: [], hint: 'Whole body and both feet must be in view' };
-    } else {
+    else if (!legs.ok) m = { shape: null, deviations: [], hint: legs.reason };
+    else {
       m = measureBalance(lm, this.s, this.library === undefined ? activeLibrary : this.library);
+      m.legConfidence = legs.confidence;
+      m.lowConfidenceLeg = legs.lowConfidenceLeg;
     }
 
-    if (this.segment && m.shape && m.shape !== this.segment.shape) {
-      this.endSegment(); // switched straight into another shape
-    }
-    if (m.shape) {
-      if (!this.segment) {
-        this.segment = { shape: m.shape, tStart: t, tLast: t, deviations: {}, releve: [], fullLegs: [], visibility: 1, recognizer: m.recognizer };
+    const family = m.shape ? FAMILY[m.shape] : null;
+    if (family && this.segment && family !== this.segment.family) {
+      // Another shape during a hold: only switch once it has lasted switchAfterMs, so one
+      // misrecognized frame can't split a balance into two judged moves.
+      if (!this.candidate || this.candidate.family !== family) this.candidate = newSegment(family, t, m);
+      addFrame(this.candidate, t, m, lm);
+      if (this.candidate.tLast - this.candidate.tStart >= this.s.switchAfterMs) {
+        this.endSegment();
+        this.segment = this.candidate;
+        this.candidate = null;
       }
-      const seg = this.segment;
-      seg.tLast = t;
-      for (const d of m.deviations) (seg.deviations[d.segment] ??= { label: d.label, values: [] }).values.push(d.deg);
-      if (m.releve !== null) seg.releve.push(m.releve);
-      seg.fullLegs.push(m.fullLegs);
-      seg.visibility = Math.min(seg.visibility, minVisibility(lm, LEG_POINTS));
+    } else if (family) {
+      this.candidate = null;
+      this.segment ??= newSegment(family, t, m);
+      addFrame(this.segment, t, m, lm);
     } else if (this.segment && t - this.segment.tLast > this.s.gapToleranceMs) {
       this.endSegment();
     }
@@ -103,8 +120,11 @@ export class BalanceDetector {
   endSegment() {
     const seg = this.segment;
     this.segment = null;
+    this.candidate = null;
+    // Most frequent shape of the hold (e.g. front split WITH help if the hand was there most of the time).
+    const shape = Object.entries(seg.shapes).sort((a, b) => b[1] - a[1])[0][0];
     const event = judgeBalance({
-      shape: seg.shape,
+      shape,
       tStart: seg.tStart,
       tEnd: seg.tLast,
       // Median over the hold: robust to a few noisy frames.
@@ -112,6 +132,7 @@ export class BalanceDetector {
       releveShare: seg.releve.length ? seg.releve.filter(Boolean).length / seg.releve.length : null,
       fullLegsShare: seg.fullLegs.filter(Boolean).length / seg.fullLegs.length,
       visibility: seg.visibility,
+      lowConfidenceShare: seg.lowLeg / seg.frames,
       recognizer: seg.recognizer,
     }, this.s);
     if (event) this.onEvent(event);
@@ -121,6 +142,21 @@ export class BalanceDetector {
   flush() {
     if (this.segment) this.endSegment();
   }
+}
+
+function newSegment(family, t, m) {
+  return { family, shapes: {}, tStart: t, tLast: t, deviations: {}, releve: [], fullLegs: [], lowLeg: 0, frames: 0, visibility: 1, recognizer: m.recognizer };
+}
+
+function addFrame(seg, t, m, lm) {
+  seg.tLast = t;
+  seg.shapes[m.shape] = (seg.shapes[m.shape] ?? 0) + 1;
+  for (const d of m.deviations) (seg.deviations[d.segment] ??= { label: d.label, values: [] }).values.push(d.deg);
+  if (m.releve !== null) seg.releve.push(m.releve);
+  seg.fullLegs.push(m.fullLegs);
+  seg.frames += 1;
+  if (m.lowConfidenceLeg) seg.lowLeg += 1;
+  seg.visibility = Math.min(seg.visibility, m.legConfidence ?? minVisibility(lm, LEG_POINTS));
 }
 
 /**
@@ -184,6 +220,15 @@ function deviationsFor(shape, f) {
       mainDeg: f.thighDeg,
     };
   }
+  if (shape === 'backSplitTrunkForward') {
+    return {
+      deviations: [
+        { segment: 'split', label: 'Split short of 180°', deg: 180 - f.split },
+        { segment: 'trunk', label: 'Trunk above horizontal', deg: 90 - f.lean },
+      ],
+      mainDeg: f.split,
+    };
+  }
   if (shape === 'backSplitFootAboveHead') {
     if (f.footBelowHeadDeg === null) return null;
     return { deviations: [{ segment: 'foot', label: 'Foot not fully above head', deg: f.footBelowHeadDeg }], mainDeg: f.legUp };
@@ -203,8 +248,9 @@ export function ruleShape(f, s = BALANCE_SETTINGS) {
       && f.thighDeg >= s.minAttitudeThighDeg && f.trunk < s.maxAttitudeTrunkTilt && !f.footAtHead) {
     return 'attitude';
   }
-  if (f.freeKnee >= s.attitudeKneeMax && f.legUp >= s.minBackLegElevation && f.trunk < s.maxUprightTrunkTilt) {
-    return 'backSplitFootAboveHead';
+  if (f.freeKnee >= s.attitudeKneeMax && f.legUp >= s.minBackLegElevation) {
+    if (f.lean >= s.minTrunkForwardLean && f.split >= s.minSplitToRecognize) return 'backSplitTrunkForward';
+    if (f.trunk < s.maxUprightTrunkTilt) return 'backSplitFootAboveHead';
   }
   return null;
 }
@@ -222,6 +268,7 @@ const SHAPE_KEYS = {
   frontSplitHelp: 'front_split_help',
   frontSplit: 'front_split',
   backSplitFootAboveHead: 'back_split',
+  backSplitTrunkForward: 'back_split_trunk_forward',
   attitude: 'attitude',
 };
 const SHAPE_FROM_KEY = Object.fromEntries(Object.entries(SHAPE_KEYS).map(([k, v]) => [v, k]));
@@ -243,7 +290,7 @@ export function shapeFromKey(key) {
  */
 export function photoDeduction(m) {
   if (!m.shape) return null;
-  return round2(m.deviations.reduce((total, d) => total + deviationBand(d.deg).penalty, 0));
+  return round2(m.deviations.reduce((total, d) => total + judgedBand(d.deg).penalty, 0));
 }
 
 /** Turns one held balance into a judged event using the Code of Points. */
@@ -256,12 +303,17 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
   const measurements = { holdMs: Math.round(durationMs) };
   let shapeValid = true;
 
-  // Shape deviations: one penalty per incorrect body segment (#2.5, p. 25; examples p. 83).
+  // Shape deviations: one penalty per incorrect body segment (#2.5, p. 25; examples p. 83),
+  // after the camera measurement margin (rules.js MEASUREMENT_MARGIN_DEG).
   for (const d of m.deviations) {
-    const band = deviationBand(d.deg);
-    measurements[`${d.segment}DevDeg`] = band.deg;
+    const band = judgedBand(d.deg);
+    measurements[`${d.segment}DevDeg`] = band.measuredDeg;
     if (band.penalty > 0) {
-      penalties.push({ reason: `${d.label}: ${band.band} deviation (${band.deg}°)`, value: band.penalty, ref: band.ref });
+      penalties.push({
+        reason: `${d.label}: ${band.band} deviation (measured ${band.measuredDeg}°, ${band.deg}° after the 3° camera margin)`,
+        value: band.penalty,
+        ref: band.ref,
+      });
     }
     if (!band.dbValid) shapeValid = false;
   }
@@ -287,6 +339,9 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
   const usesSplit = m.deviations.some((d) => d.segment === 'split');
   if (usesSplit && m.fullLegsShare < 0.5) {
     warnings.push('A leg is foreshortened (camera not side-on): split angle unreliable');
+  }
+  if (m.lowConfidenceShare > 0.5) {
+    warnings.push('Raised leg tracked with low confidence by the pose model: check this call');
   }
   if (!rule.verified) warnings.push('DB value awaiting a check against the CoP pictograms (p. 88-89)');
 

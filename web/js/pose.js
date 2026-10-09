@@ -9,11 +9,13 @@ const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION
 export const MODELS = {
   lite: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
   full: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  // Largest and most accurate (30 MB), best for extreme shapes like splits; slower.
+  heavy: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
 };
 
 /**
  * Loads the model. Tries the GPU first and falls back to the CPU.
- * @param variant 'full' (more accurate) or 'lite' (faster on weak laptops)
+ * @param variant 'heavy' (most accurate), 'full' or 'lite' (fastest)
  * @param mode 'VIDEO' (live / clips) or 'IMAGE' (single photos, see tools/image-check.html)
  * @returns { detect(video) -> landmarks (normalized 0..1) or null, detectImage(img), delegate, close() }
  */

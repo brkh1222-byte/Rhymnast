@@ -23,6 +23,19 @@ export function deviationBand(deviationDeg) {
   return { deg, ...DEVIATION_BANDS.find((b) => deg <= b.maxDeg) };
 }
 
+/**
+ * Camera measurement margin. One 2D camera measures joint angles to about ±3°, and the Code says
+ * the angles are "just a guideline" for judges (p. 26). So the gymnast gets the benefit of the doubt:
+ * the first 3° of a measured deviation are not deducted.
+ */
+export const MEASUREMENT_MARGIN_DEG = 3;
+
+/** Band for a MEASURED deviation, after the camera margin. `measuredDeg` keeps the raw value. */
+export function judgedBand(measuredDeviationDeg, margin = MEASUREMENT_MARGIN_DEG) {
+  const measuredDeg = Math.max(0, Math.round(measuredDeviationDeg));
+  return { ...deviationBand(measuredDeviationDeg - margin), measuredDeg };
+}
+
 /** Difficulty components, Difficulty #1.5 (p. 21): highest 8 DB counted. */
 export const MAX_DB_COUNTED = 8;
 
@@ -108,6 +121,18 @@ export const BALANCES = {
     requirement: 'Free leg high up backward, without help: "Split is NOT required; whole foot above the head is required. Touching is NOT required." (Technique, p. 87)',
     verified: false,
     ref: 'Balances #10 (p. 82-84), technique p. 86-87, table #11 row 10 (p. 89)',
+  },
+  BACK_SPLIT_TRUNK_FORWARD: {
+    box: '2.11',
+    // Table #11 row 11 "Back split with or without help, trunk forward at the horizontal or below,
+    // or with ring without help" (p. 89): codes 2.1104 (0.40) and 2.1106 (0.60, the ring variant).
+    plain: { code: '2.1104', name: 'Back split balance, trunk forward', value: 0.4 },
+    requiredSplitDeg: 180,
+    // The balance table gives no separate technique text; the matching rotation (p. 97) defines the
+    // shape: "Split position required. The trunk should remain at the horizontal or below."
+    requirement: 'Back split, trunk forward at the horizontal or below (table #11 row 11, p. 89): split position required; the trunk at the horizontal or below (same shape as the rotation, p. 97).',
+    verified: false,
+    ref: 'Balances #10 (p. 82-84), table #11 row 11 (p. 89), shape as rotation p. 97',
   },
   ATTITUDE: {
     box: '2.12',

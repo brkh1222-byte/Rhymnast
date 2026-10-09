@@ -15,14 +15,51 @@ export const BALANCE_SETTINGS = {
   attitudeKneeMax: 140,
   minAttitudeThighDeg: 55, // thigh raised at least this much (90 = horizontal)
   minBackLegElevation: 120, // back split: leg at least 30° above horizontal (not an arabesque)
-  maxUprightTrunkTilt: 60, // more lean = "trunk forward" balance (row 11), not detected
+  maxUprightTrunkTilt: 60, // back split with the trunk more upright than this = foot-above-head (row 10)
+  minTrunkForwardLean: 65, // back split with the trunk leaning this far forward = trunk-forward (row 11)
   maxAttitudeTrunkTilt: 45, // more lean = another element (e.g. penché), not an attitude
+  minFreeLegVisibility: 0.03, // raised leg below this confidence is ignored even if plausible
+  legLengthTolerance: [0.6, 1.4], // raised thigh and shin vs the support leg's, for a plausible leg
   helpDistance: 0.3, // hand within 0.3 torso lengths of the free shin/foot = help
+  // A low-confidence hand must be right on the leg to count: holding hands in the team's video were
+  // 0.00-0.03 torso lengths away; an open hand beside the leg (London 2012 photo) was 0.10.
+  helpDistanceUnsure: 0.07,
   releveHeelLift: 0.12,
   releveMinShare: 0.6,
-  gapToleranceMs: 150, // brief tracking glitches don't end the hold
+  gapToleranceMs: 400, // tracking dropouts up to 0.4 s don't end the hold
+  switchAfterMs: 250, // another shape must last this long before the hold switches to it
   minBalanceMs: 300, // shorter = passing movement or a swing/kick, not a balance attempt
 };
+
+/**
+ * Can the legs be measured in this frame?
+ * The hips and the SUPPORT leg must be clearly seen. The RAISED leg is often reported with low
+ * confidence by the pose model in splits (unusual pose, dark leggings on a dark background) even
+ * when its position is right, so it is also accepted when its shape is plausible: thigh and shin
+ * about as long as the support leg's. Checked on the team's front split video (raised leg at
+ * 4-28% confidence, but correctly placed).
+ * @returns { ok, confidence 0..1, lowConfidenceLeg, reason }
+ */
+export function legsUsable(lm, s = BALANCE_SETTINGS) {
+  if (!lm) return { ok: false, confidence: 0, reason: 'Step into the camera view' };
+  const leftIsFree = lm[LM.L_ANKLE].y < lm[LM.R_ANKLE].y;
+  const free = legPoints(lm, leftIsFree ? 'L' : 'R');
+  const support = legPoints(lm, leftIsFree ? 'R' : 'L');
+  const vis = (p) => p?.visibility ?? 0;
+  const supportVis = Math.min(vis(lm[LM.L_HIP]), vis(lm[LM.R_HIP]), vis(support.knee), vis(support.ankle));
+  if (supportVis < s.minVisibility) {
+    return { ok: false, confidence: supportVis, reason: 'Whole body and both feet must be in view' };
+  }
+  const freeVis = Math.min(vis(free.knee), vis(free.ankle));
+  if (freeVis >= s.minVisibility) return { ok: true, confidence: Math.min(supportVis, freeVis), lowConfidenceLeg: false };
+  const [lo, hi] = s.legLengthTolerance;
+  const thigh = dist(free.hip, free.knee) / dist(support.hip, support.knee);
+  const shin = dist(free.knee, free.ankle) / dist(support.knee, support.ankle);
+  const plausible = freeVis >= s.minFreeLegVisibility && thigh >= lo && thigh <= hi && shin >= lo && shin <= hi;
+  return plausible
+    ? { ok: true, confidence: freeVis, lowConfidenceLeg: true }
+    : { ok: false, confidence: freeVis, reason: 'Raised leg not visible: try a plain background and contrasting clothes' };
+}
 
 /**
  * Everything the balance rules need from one frame. null if the body can't be measured.
@@ -100,12 +137,19 @@ function footBelowHeadDeg(hips, low, headTop) {
   return Math.max(0, neededDeg - legElevation(hips, low));
 }
 
-/** Is a hand holding the free leg (shin or foot)? */
+/**
+ * Is a hand holding the free leg (shin or foot)?
+ * A clearly seen hand counts within helpDistance. A hand the model is unsure about (dark sleeves,
+ * fast motion) counts only when it is right on the leg (gripping), not just beside it.
+ */
 function hasHelp(lm, free, torso, s) {
-  const hands = [LM.L_WRIST, LM.R_WRIST, LM.L_INDEX, LM.R_INDEX]
+  const toLeg = (h) => Math.min(distToSegment(h, free.knee, free.ankle), distToSegment(h, free.ankle, free.toe ?? free.ankle));
+  return [LM.L_WRIST, LM.R_WRIST, LM.L_INDEX, LM.R_INDEX]
     .map((i) => lm[i])
-    .filter((p) => p && (p.visibility ?? 0) >= 0.3);
-  const limit = s.helpDistance * torso;
-  return hands.some((h) => distToSegment(h, free.knee, free.ankle) < limit
-    || distToSegment(h, free.ankle, free.toe ?? free.ankle) < limit);
+    .some((h) => {
+      if (!h) return false;
+      const v = h.visibility ?? 0;
+      if (v >= 0.3) return toLeg(h) < s.helpDistance * torso;
+      return v >= 0.05 && toLeg(h) < s.helpDistanceUnsure * torso;
+    });
 }

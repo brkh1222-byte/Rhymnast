@@ -115,6 +115,27 @@ test('arabesque (leg only horizontal) is not a back split', () => {
   assertEqual(run(hold(40, () => arabesqueBalance())).length, 0);
 });
 
+// ---------- Back split, trunk forward (row 11; the team's video) ----------
+
+test('back split with the trunk below horizontal, split 180°: 2.1104, DB 0.40, clean', () => {
+  const e = only(run(hold(40, () => backSplitBalance({ legDeg: 180, trunkTilt: 108 }))));
+  assertEqual(e.code, '2.1104');
+  assert(e.dbValid && e.dbValue === 0.4);
+  assertEqual(e.penalties.length, 0);
+});
+
+test('back split trunk forward, split 165°: medium split deviation', () => {
+  const e = only(run(hold(40, () => backSplitBalance({ legDeg: 165, trunkTilt: 100 }))));
+  assertEqual(e.code, '2.1104');
+  assertEqual(e.penalties[0].value, 0.3);
+});
+
+test('back split trunk forward but trunk 15° above horizontal: trunk deviation', () => {
+  const e = only(run(hold(40, () => backSplitBalance({ legDeg: 180, trunkTilt: 75 }))));
+  assertEqual(e.code, '2.1104');
+  assert(e.penalties.some((p) => p.reason.startsWith('Trunk above horizontal')));
+});
+
 // ---------- Attitude ----------
 
 test('attitude, thigh horizontal, trunk upright: 2.1202, DB 0.20, no penalty', () => {
@@ -147,11 +168,40 @@ test('attitude facing left is recognized', () => {
 });
 
 test('a balance that ends by leaving the camera view is still judged', () => {
-  const seq = [...repeat(40, () => frontSplitBalance({ help: true })), ...repeat(10, () => null)];
+  const seq = [...repeat(40, () => frontSplitBalance({ help: true })), ...repeat(15, () => null)]; // > 0.4 s gap
   const events = [];
   const d = new BalanceDetector((e) => events.push(e));
   for (const f of frames(seq)) d.update(f); // no flush: the null frames must close it
   assertEqual(events.length, 1);
+});
+
+// ---------- Fair judging: no extra deductions from tracking noise ----------
+
+test('hand flickering on and off the leg during one hold = ONE move, no repeat or short-hold penalty', () => {
+  const e = only(run(hold(45, (i) => frontSplitBalance({ help: i % 3 !== 0 })))); // help 2 of 3 frames
+  assertEqual(e.code, '2.303'); // majority: with help
+  assertEqual(e.penalties.length, 0);
+});
+
+test('one misrecognized frame in the middle of a hold does not split it', () => {
+  const e = only(run(hold(45, (i) => (i === 20 ? attitudeBalance() : frontSplitBalance({ help: true })))));
+  assertEqual(e.code, '2.303');
+  assertEqual(e.penalties.length, 0);
+});
+
+test('a short tracking dropout (0.3 s) does not split a hold', () => {
+  const seq = [...repeat(10, () => standing()),
+    ...repeat(20, () => frontSplitBalance({ help: true })), ...repeat(9, () => null),
+    ...repeat(20, () => frontSplitBalance({ help: true })), ...repeat(15, () => standing())];
+  const e = only(run(seq));
+  assert(e.measurements.holdMs > 1400, `held ${e.measurements.holdMs} ms`);
+  assertEqual(e.penalties.length, 0);
+});
+
+test('camera margin: a split 2-3° short of 180° is not deducted', () => {
+  assertEqual(only(run(hold(40, () => frontSplitBalance({ help: true, splitDeg: 177 })))).penalties.length, 0);
+  // 4° measured -> 1° after the margin -> small deviation
+  assertEqual(only(run(hold(40, () => frontSplitBalance({ help: true, splitDeg: 176 })))).penalties[0].value, 0.1);
 });
 
 // ---------- No false positives ----------

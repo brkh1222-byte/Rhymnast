@@ -3,11 +3,10 @@
 //   Add photos: each photo becomes one example.
 // The examples go into the pose library (ui/libraryStore.js), which the app uses at once.
 
-import { balanceFrame } from '../elements/balanceFrame.js';
+import { balanceFrame, legsUsable } from '../elements/balanceFrame.js';
 import { setPoseLibrary } from '../elements/balances.js';
 import { poseSignature } from '../library/signature.js';
 import { POSES, POSE_NAMES } from '../library/recognizer.js';
-import { LEG_POINTS, minVisibility } from '../geometry.js';
 import { currentLibrary, exportTaught, importTaught, libraryCounts, resetTaught, teach } from './libraryStore.js';
 import { el } from './format.js';
 
@@ -52,7 +51,7 @@ export class TeachPanel {
     const name = POSE_NAMES[r.label];
     if (now < r.startAt) return `Get into ${name}… ${Math.ceil((r.startAt - now) / 1000)}`;
     if (now < r.startAt + RECORD_MS) {
-      if (lm && !airborne && minVisibility(lm, LEG_POINTS) >= 0.5) {
+      if (lm && !airborne && legsUsable(lm).ok) {
         const f = balanceFrame(lm);
         if (f) r.signatures.push(poseSignature(f));
       }
@@ -80,7 +79,7 @@ export class TeachPanel {
     for (const [i, file] of files.entries()) {
       this.status(`Reading photo ${i + 1} of ${files.length}…`);
       const lm = await this.options.landmarksFromPhoto(file);
-      const f = lm && minVisibility(lm, LEG_POINTS) >= 0.5 ? balanceFrame(lm) : null;
+      const f = lm && legsUsable(lm).ok ? balanceFrame(lm) : null;
       if (f) signatures.push(poseSignature(f));
     }
     this.ui.photos.value = '';

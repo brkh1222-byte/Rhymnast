@@ -10,13 +10,13 @@ function routine() {
   const d = new BalanceDetector((e) => events.push(e));
   d.library = null; // rules only: keeps this test about the report
   const seq = [
-    ...repeat(10, () => standing()),
+    ...repeat(15, () => standing()),
     ...repeat(40, () => frontSplitBalance({ help: true })),
-    ...repeat(10, () => standing()),
+    ...repeat(15, () => standing()),
     ...repeat(40, () => attitudeBalance({ thighDeg: 84, trunkTilt: 15 })),
-    ...repeat(10, () => standing()),
+    ...repeat(15, () => standing()),
     ...repeat(19, () => frontSplitBalance({ help: true })),
-    ...repeat(10, () => standing()),
+    ...repeat(15, () => standing()),
   ];
   for (const f of frames(seq)) d.update(f);
   const sb = new Scoreboard();
