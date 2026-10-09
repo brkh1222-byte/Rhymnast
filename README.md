@@ -18,7 +18,7 @@ the pose model (about 10 MB). Video stays on your device.
 
 Requires Python 3 (preinstalled on macOS) and Chrome, Edge or Safari. Internet is needed on first
 load: the pose model is downloaded from Google's CDN (the default "Heavy" model is 30 MB, about 30 s
-the first time; the browser keeps it afterwards). If FPS stays under 15, switch the Model menu to Full.
+the first time; the browser keeps it afterwards). If the video looks slow, choose "Faster" under Settings → Camera accuracy.
 
 ```sh
 cd web
@@ -27,18 +27,18 @@ python3 -m http.server 8000
 
 Open <http://localhost:8000>, then:
 
-1. **Start camera** (allow access) or **Load video…** to judge a recorded routine.
-2. Place the camera **side-on** to the gymnast, with her whole body in view. The "Legs" chip should say
-   *full length* during splits.
-3. Press **Start judging** and perform. The panel on the video shows the pose being recognized,
-   a 1-second hold timer and the deduction so far; after each move a card shows its deduction
-   (e.g. "Attitude balance · E −0.30"). Elements also appear in the list on the right.
-4. Judges enter Artistry, extra D (apparatus, R, dance steps), extra E and penalties.
-   Untick any AI call they disagree with.
-5. **Stop judging** opens the **deduction report**: every move with each deduction, the rulebook
-   sentence and page behind it, and the totals. Print or save it as PDF; export the audit log (JSON).
-6. **Teach poses** (right column): pick a pose, press **Record 3 s** and hold the correct pose
-   side-on, or add photos. The app recognizes poses by comparing with these examples (see below).
+1. Pick a tab at the top: **Practice** (gymnast / coach) or **Judge**.
+2. Press **Turn on camera** and allow access (or **or use a video** for a recorded routine).
+3. Stand **sideways** to the camera, whole body and both feet in the picture.
+4. Press **Start** and hold each balance for at least 1 second. The box on the video shows the balance
+   it sees, four dots that fill up in one second, and "Looks good" or one tip ("Open the split more
+   (−0.10)"). After each move a card shows what it cost.
+5. Press **Finish** to see the results: "You did 3 balances. Points lost: 0.40" with a reason and a
+   tip for every move. **Show rulebook details** adds the codes, measurements and rule quotes.
+   In the **Judge** tab, enter Artistry and penalties, press Agree / Disagree on each call, and get
+   the final score.
+6. **Settings** holds everything else: camera accuracy, judging all moves, Teach poses, downloading
+   the record, technical details and the developer tools.
 
 The camera only works on `localhost` or HTTPS (browser rule). To use it from another device, serve
 `web/` over HTTPS (any static host works: it's plain HTML/JS/CSS).

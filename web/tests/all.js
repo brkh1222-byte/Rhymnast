@@ -7,5 +7,6 @@ import './balances.test.js';
 import './realBalances.test.js';
 import './library.test.js';
 import './report.test.js';
+import './plain.test.js';
 
 export { runAll } from './harness.js';

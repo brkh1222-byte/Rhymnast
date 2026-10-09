@@ -153,6 +153,9 @@ export function classifyPasse(m, s = PASSE_SETTINGS) {
       reason: `Passé shape: ${deviation.band} deviation (thigh ${deviation.measuredDeg}° below horizontal, ${deviation.deg}° after the 3° camera margin)`,
       value: deviation.penalty,
       ref: deviation.ref,
+      segment: 'passeThigh',
+      measuredDeg: deviation.measuredDeg,
+      band: deviation.band,
     }]
     : [];
   const measurements = {
@@ -207,6 +210,8 @@ export function classifyPasse(m, s = PASSE_SETTINGS) {
       reason: `Shape not held for a minimum 1 second (${(durationMs / 1000).toFixed(1)} s)`,
       value: rule.shortHoldPenalty,
       ref: '#10.2.2 p.84',
+      segment: 'hold',
+      holdMs: Math.round(durationMs),
     });
   }
   const warnings = [];

@@ -3,163 +3,183 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rhymnast Judging Assistant</title>
+  <title>Rhymnast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..600;1,6..96,400&family=Jost:wght@300;400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
   <header class="top">
-    <!-- Ribbon: the one decorative flourish, a rhythmic gymnastics ribbon in a single gold line. -->
-    <svg class="ribbon" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M-20 92 C 160 20, 300 20, 420 70 S 640 118, 760 60 S 980 -4, 1220 48" />
-    </svg>
     <div class="brand">
-      <p class="eyebrow">Rhythmic gymnastics · Judging assistant</p>
       <h1>Rhymnast</h1>
+      <p class="tagline">See which points you lose in your balances, and why.</p>
     </div>
-    <div class="final">
-      <span class="label">Final score</span>
-      <span class="final-value" id="final">0.00</span>
+    <div class="tabs" role="tablist" aria-label="View">
+      <button role="tab" id="tab-practice" aria-selected="true" aria-controls="panel-practice">Practice</button>
+      <button role="tab" id="tab-judge" aria-selected="false" aria-controls="panel-judge">Judge</button>
     </div>
+    <button id="btn-settings" class="ghost" aria-controls="settings">Settings</button>
   </header>
 
   <main class="layout">
     <section class="stage-col">
-      <div class="controls">
-        <button id="btn-camera" class="primary">Start camera</button>
-        <label class="button">
-          Load video
-          <input id="file-input" type="file" accept="video/*" hidden>
-        </label>
-        <button id="btn-judge" disabled>Start judging</button>
-        <button id="btn-reset" class="quiet">New routine</button>
-        <label class="toggle" for="focus-mode"><input id="focus-mode" type="checkbox" checked> Only the 3 balances</label>
-        <label class="select">
-          <span class="label">Model</span>
-          <select id="model-select">
-            <option value="heavy" selected>Heavy · best for splits</option>
-            <option value="full">Full · faster</option>
-            <option value="lite">Lite · fastest</option>
-          </select>
-        </label>
-      </div>
-
       <div class="stage" id="stage">
         <video id="video" playsinline muted></video>
         <canvas id="overlay"></canvas>
         <div class="stage-msg" id="stage-msg">
-          <span class="stage-title">Begin with the camera, or load a routine.</span>
-          <small>Film the gymnast side-on, whole body in frame.</small>
+          <b>Turn on the camera to begin</b>
+          <span>Stand sideways to the camera, with your whole body in the picture.</span>
         </div>
-        <div class="judging-badge" id="judging-badge" hidden><i></i>Judging</div>
+        <div class="rec" id="judging-badge" hidden>● Watching</div>
 
-        <!-- Live overlay: what is recognized right now and what it would cost. -->
-        <div class="hud" id="hud" hidden aria-live="polite">
-          <div class="hud-row" id="hud-pose-row"><b class="hud-pose" id="hud-pose"></b><span class="hud-match" id="hud-match"></span></div>
-          <div class="hud-hold" id="hud-bar-row"><span class="hud-bar" id="hud-bar"></span><small id="hud-bar-label"></small></div>
-          <div class="hud-measure" id="hud-measure"></div>
-          <div class="hud-deduction" id="hud-deduction"></div>
-          <div class="hud-hint" id="hud-hint"></div>
+        <!-- Live message: what the app sees right now. -->
+        <div class="live" id="live" hidden aria-live="polite">
+          <div class="live-top">
+            <b id="live-pose"></b>
+            <span class="dots" id="live-dots" title="Hold for 1 second"><i></i><i></i><i></i><i></i></span>
+          </div>
+          <p id="live-text"></p>
         </div>
-        <!-- A card for every judged move. -->
+        <!-- A card after every move. -->
         <div class="move-cards" id="move-cards" aria-live="polite"></div>
       </div>
 
-      <dl class="strip">
-        <div><dt>FPS</dt><dd id="fps">–</dd></div>
-        <div><dt>Legs</dt><dd id="view">–</dd></div>
-        <div><dt>Split</dt><dd id="split">–</dd></div>
-        <div><dt>Shape</dt><dd id="shape">–</dd></div>
-        <div><dt>Relevé</dt><dd id="releve">–</dd></div>
-        <div><dt>State</dt><dd id="state">–</dd></div>
-      </dl>
+      <div class="actions">
+        <button id="btn-main" class="big">Turn on camera</button>
+        <label class="text-link" for="file-input">or use a video<input id="file-input" type="file" accept="video/*" hidden></label>
+        <button id="btn-reset" class="ghost" hidden>Start over</button>
+      </div>
 
-      <p class="note">
-        Judged: front split with help (2.303), back split without help with the whole foot above the
-        head (2.1005) and attitude (2.1202). Untick "Only the 3 balances" to also judge passé and the
-        split leap. Code of Points shape deviations per body segment (≤10° −0.10, 11–20° −0.30,
-        &gt;20° −0.50 and the difficulty is not valid), the one-second hold (−0.30) and relevé
-        (flat foot −0.10). Apparatus difficulties, dance steps and apparatus faults are entered by
-        the judges. Stop judging to see the deduction report.
-      </p>
+      <ol class="steps" id="steps">
+        <li data-step="1">Turn on the camera</li>
+        <li data-step="2">Stand sideways, whole body in view</li>
+        <li data-step="3">Press Start and hold each balance for 1 second</li>
+      </ol>
     </section>
 
-    <aside class="panel-col">
-      <section class="scores" aria-label="Scores">
-        <div class="score"><span class="label">D · Difficulty</span><b id="score-d">0.00</b><small id="score-d-detail">AI 0.00</small></div>
-        <div class="score"><span class="label">E · Execution</span><b id="score-e">10.00</b><small id="score-e-detail">AI −0.00</small></div>
-        <div class="score"><span class="label">A · Artistry</span><b id="score-a">0.00</b><small>judges</small></div>
+    <aside class="side">
+      <!-- Practice: for the gymnast and coach -->
+      <section class="card" id="panel-practice" role="tabpanel" aria-labelledby="tab-practice">
+        <h2>Your moves</h2>
+        <p class="total" id="practice-total">No moves yet.</p>
+        <ol class="moves" id="practice-moves"></ol>
+        <p class="small">The app watches three balances: front split, back split and attitude.</p>
       </section>
-      <p class="running" id="running">No moves judged yet.</p>
 
-      <section class="panel">
-        <h2>Judge panel</h2>
-        <div class="inputs">
-          <label for="in-artistry">Artistry <input id="in-artistry" type="number" min="0" max="10" step="0.05" value="0"></label>
-          <label for="in-extra-d">Extra D <input id="in-extra-d" type="number" min="0" step="0.1" value="0"></label>
-          <label for="in-extra-e">Extra E deductions <input id="in-extra-e" type="number" min="0" step="0.1" value="0"></label>
-          <label for="in-penalties">Penalties <input id="in-penalties" type="number" min="0" step="0.05" value="0"></label>
+      <!-- Judge: score, artistry, agree/disagree -->
+      <section class="card" id="panel-judge" role="tabpanel" aria-labelledby="tab-judge" hidden>
+        <div class="final">
+          <span>Final score</span>
+          <b id="final">0.00</b>
         </div>
-        <p class="hint">Extra D covers apparatus, R and dance steps. Untick an element to reject the AI's call.
-          Final = D + A + E − penalties.</p>
-        <div class="links">
-          <button id="btn-report" class="link">View report →</button>
-          <button id="btn-export" class="link">Export audit log →</button>
+        <div class="parts">
+          <div><span>Difficulty</span><b id="score-d">0.00</b><small>from the app</small></div>
+          <div><span>Execution</span><b id="score-e">10.00</b><small id="score-e-detail">from the app</small></div>
+          <div><span>Artistry</span><b id="score-a">0.00</b><small>your score</small></div>
         </div>
-      </section>
-
-      <section class="panel">
-        <h2>Elements <span class="count" id="event-count">0</span></h2>
-        <ol class="events" id="events">
-          <li class="empty">No elements yet. Press <b>Start judging</b>, then perform.</li>
-        </ol>
-      </section>
-
-      <section class="panel">
-        <details class="teach" id="teach">
-          <summary><h2>Teach poses</h2></summary>
-          <p class="hint">Show the app correct examples so it recognizes your gymnasts better. Pick the
-            pose, press Record, and hold the correct pose side-on for 3 seconds. Teach "Not one of these"
-            with poses it should ignore. Deductions still follow the rulebook.</p>
-          <div class="teach-row">
-            <label class="select" for="teach-pose"><span class="label">Pose</span><select id="teach-pose"></select></label>
-            <button id="btn-record">Record 3 s</button>
-            <label class="button quiet-button" for="teach-photos">Add photos<input id="teach-photos" type="file" accept="image/*" multiple hidden></label>
-          </div>
-          <ul class="teach-counts" id="teach-counts"></ul>
-          <p class="note" id="teach-status"></p>
-          <div class="links">
-            <button id="btn-teach-export" class="link">Export taught poses →</button>
-            <label class="link-label" for="teach-import">Import →<input id="teach-import" type="file" accept="application/json,.json" hidden></label>
-            <button id="btn-teach-reset" class="link">Remove taught poses</button>
+        <div class="fields">
+          <label for="in-artistry">Artistry (0–10)<input id="in-artistry" type="number" min="0" max="10" step="0.05" value="0" inputmode="decimal"></label>
+          <label for="in-penalties">Penalties<input id="in-penalties" type="number" min="0" step="0.05" value="0" inputmode="decimal"></label>
+        </div>
+        <details class="more">
+          <summary>Points the app can't see</summary>
+          <p class="small">For apparatus work, dance steps and other moves the app doesn't judge.</p>
+          <div class="fields">
+            <label for="in-extra-d">Extra difficulty<input id="in-extra-d" type="number" min="0" step="0.1" value="0" inputmode="decimal"></label>
+            <label for="in-extra-e">Extra execution points lost<input id="in-extra-e" type="number" min="0" step="0.1" value="0" inputmode="decimal"></label>
           </div>
         </details>
+        <h2>Moves</h2>
+        <ol class="moves" id="judge-moves"></ol>
+        <button id="btn-report" class="secondary wide">Open full report</button>
       </section>
     </aside>
   </main>
 
-  <!-- Deduction report: opens when judging stops. -->
-  <section class="report" id="report" hidden aria-labelledby="report-title">
-    <div class="report-head">
-      <div>
-        <p class="eyebrow">Rhymnast · Deduction report</p>
-        <h2 class="report-title" id="report-title">Routine report</h2>
-      </div>
-      <div class="report-actions">
-        <button id="btn-print">Print / save PDF</button>
-        <button id="btn-report-close" class="quiet">Close</button>
+  <!-- Results after Finish -->
+  <section class="results" id="report" hidden aria-labelledby="report-title">
+    <div class="results-head">
+      <h2 id="report-title">Your results</h2>
+      <div class="results-actions">
+        <button id="btn-details" class="ghost" aria-pressed="false">Show rulebook details</button>
+        <button id="btn-print" class="ghost">Print</button>
+        <button id="btn-report-close" class="ghost">Close</button>
       </div>
     </div>
     <div id="report-body"></div>
   </section>
 
+  <!-- Settings drawer -->
+  <div class="backdrop" id="settings-backdrop" hidden></div>
+  <aside class="drawer" id="settings" hidden aria-labelledby="settings-title">
+    <div class="drawer-head">
+      <h2 id="settings-title">Settings</h2>
+      <button id="btn-settings-close" class="ghost">Close</button>
+    </div>
+
+    <section class="setting">
+      <label for="model-select"><b>Camera accuracy</b></label>
+      <select id="model-select">
+        <option value="heavy" selected>Best for splits (slower to load)</option>
+        <option value="full">Faster</option>
+        <option value="lite">Fastest (older laptops)</option>
+      </select>
+    </section>
+
+    <section class="setting">
+      <label class="check" for="focus-mode"><input id="focus-mode" type="checkbox" checked>
+        Only judge the three balances (front split, back split, attitude)</label>
+    </section>
+
+    <section class="setting">
+      <details class="teach" id="teach">
+        <summary><b>Teach poses</b></summary>
+        <p class="small">Show the app correct examples so it recognizes your gymnasts better. Pick the pose, press
+          Record, and hold the correct pose sideways for 3 seconds.</p>
+        <div class="row">
+          <select id="teach-pose" aria-label="Pose to teach"></select>
+          <button id="btn-record" class="secondary">Record 3 s</button>
+          <label class="button-label" for="teach-photos">Add photos<input id="teach-photos" type="file" accept="image/*" multiple hidden></label>
+        </div>
+        <ul class="counts" id="teach-counts"></ul>
+        <p class="small" id="teach-status"></p>
+        <div class="row">
+          <button id="btn-teach-export" class="ghost">Save taught poses</button>
+          <label class="button-label ghost-label" for="teach-import">Load taught poses<input id="teach-import" type="file" accept="application/json,.json" hidden></label>
+          <button id="btn-teach-reset" class="ghost">Remove taught poses</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="setting">
+      <b>Records</b>
+      <p class="small">A complete record of every call, for the competition file.</p>
+      <button id="btn-export" class="ghost">Download record (JSON)</button>
+    </section>
+
+    <section class="setting">
+      <details>
+        <summary><b>Technical details</b></summary>
+        <dl class="tech">
+          <div><dt>Frames per second</dt><dd id="fps">–</dd></div>
+          <div><dt>Legs seen side-on</dt><dd id="view">–</dd></div>
+          <div><dt>Split angle</dt><dd id="split">–</dd></div>
+          <div><dt>Shape</dt><dd id="shape">–</dd></div>
+          <div><dt>On the toes</dt><dd id="releve">–</dd></div>
+          <div><dt>State</dt><dd id="state">–</dd></div>
+        </dl>
+        <p class="small">Developer tools: <a href="tools/video-analyze.html">video analysis</a> ·
+          <a href="tools/validate.html">photo validation</a> · <a href="tools/image-check.html">single photo</a> ·
+          <a href="tests/">tests</a></p>
+      </details>
+    </section>
+  </aside>
+
   <footer class="foot">
-    Decision support for judges, not a replacement. Rules from the FIG Rhythmic Gymnastics Code of
-    Points 2025–2028. One camera measures in 2D, so angles are reliable only side-on.
-    Video stays on this device.
+    Rhymnast helps judges and coaches; it doesn't replace them. Rules: FIG Rhythmic Gymnastics Code of Points
+    2025–2028. Your video stays on this device.
   </footer>
 </body>
 </html>

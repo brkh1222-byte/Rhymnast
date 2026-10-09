@@ -111,6 +111,13 @@ export class BalanceDetector {
       deviations: m.deviations,
       holdMs: this.segment ? this.segment.tLast - this.segment.tStart : 0,
       deduction: m.shape ? photoDeduction(m) : null,
+      // Deductions this frame would get (after the camera margin), for the live message.
+      penalties: m.shape
+        ? m.deviations
+          .map((d) => ({ segment: d.segment, ...judgedBand(d.deg) }))
+          .filter((b) => b.penalty > 0)
+          .map((b) => ({ segment: b.segment, measuredDeg: b.measuredDeg, value: b.penalty }))
+        : [],
       confidence: m.confidence ?? null,
       recognizer: m.recognizer ?? null,
       hint: m.shape ? null : m.hint ?? null,
@@ -224,7 +231,7 @@ function deviationsFor(shape, f) {
     return {
       deviations: [
         { segment: 'split', label: 'Split short of 180°', deg: 180 - f.split },
-        { segment: 'trunk', label: 'Trunk above horizontal', deg: 90 - f.lean },
+        { segment: 'trunkAbove', label: 'Trunk above horizontal', deg: 90 - f.lean },
       ],
       mainDeg: f.split,
     };
@@ -313,6 +320,9 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
         reason: `${d.label}: ${band.band} deviation (measured ${band.measuredDeg}°, ${band.deg}° after the 3° camera margin)`,
         value: band.penalty,
         ref: band.ref,
+        segment: d.segment,
+        measuredDeg: band.measuredDeg,
+        band: band.band,
       });
     }
     if (!band.dbValid) shapeValid = false;
@@ -323,6 +333,8 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
       reason: `Shape not held for a minimum 1 second (${(durationMs / 1000).toFixed(1)} s)`,
       value: BALANCE_RULES.shortHoldPenalty,
       ref: '#10.2.2 p.84',
+      segment: 'hold',
+      holdMs: Math.round(durationMs),
     });
   }
 
@@ -334,6 +346,7 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
     value = round2(value - BALANCE_RULES.flatFootReduction);
     warnings.push('On flat foot: value reduced by 0.10 (#10.3)');
   }
+  const flatFoot = m.releveShare !== null && m.releveShare < s.releveMinShare;
   if (m.releveShare !== null) measurements.relevePct = Math.round(m.releveShare * 100);
 
   const usesSplit = m.deviations.some((d) => d.segment === 'split');
@@ -359,6 +372,8 @@ export function judgeBalance(m, s = BALANCE_SETTINGS) {
     confidence: Math.round(m.visibility * 10) / 10,
     warnings,
     requirement: rule.requirement,
+    flatFoot,
+    lowConfidence: m.lowConfidenceShare > 0.5,
     recognizedBy: m.recognizer ?? 'rules',
     ruleRef: rule.ref,
   };

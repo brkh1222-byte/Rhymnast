@@ -31,6 +31,8 @@
       move, running total; focus mode (only the 3 balances)
 - [x] Deduction report on Stop judging, with rulebook quotes and pages; print / PDF
 - [x] Pose library + "Teach poses" (record 3 s / photos, export/import)
+- [x] Simple redesign after the judges' review (2026-10-09): Practice / Judge tabs, one main button,
+      plain-language results and tips, technical things moved to Settings
 
 ## Phase 4 - Validate + polish (Days 12-14)
 - [x] Photo tools: `tools/image-check.html`, `tools/validate.html` (labeled folders → results + fixtures)

@@ -22,12 +22,7 @@ export function buildReport(scoreboard, judge = {}, { durationMs = null } = {}) 
 
   const moves = events.map((e, i) => {
     const status = scores.status.get(e.id);
-    const deductions = e.rejected ? [] : e.penalties.map((p) => ({
-      value: p.value,
-      reason: p.reason,
-      ref: p.ref,
-      rule: ruleTextFor(p.ref),
-    }));
+    const deductions = e.rejected ? [] : e.penalties.map((p) => ({ ...p, rule: ruleTextFor(p.ref) }));
     return {
       number: i + 1,
       timeMs: e.routineMs ?? e.t,
@@ -43,6 +38,8 @@ export function buildReport(scoreboard, judge = {}, { durationMs = null } = {}) 
       clean: !e.rejected && deductions.length === 0,
       rejected: e.rejected,
       notes: e.warnings.map((w) => ({ text: w, rule: ruleTextFor(w) })),
+      flatFoot: Boolean(e.flatFoot),
+      lowConfidence: Boolean(e.lowConfidence),
     };
   });
 

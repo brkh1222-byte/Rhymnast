@@ -126,6 +126,9 @@ export function judgeSplitLeap(m) {
       reason: `Split shape: ${deviation.band} deviation (${deviation.measuredDeg}° short of 180°, ${deviation.deg}° after the 3° camera margin)`,
       value: deviation.penalty,
       ref: deviation.ref,
+      segment: 'leapSplit',
+      measuredDeg: deviation.measuredDeg,
+      band: deviation.band,
     }]
     : [];
   const warnings = [];

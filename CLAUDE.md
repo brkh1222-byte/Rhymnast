@@ -70,6 +70,9 @@ Known limits (be honest in the UI and README):
    so a plausible-leg check replaces the hard 50% gate; the team's back split is the trunk-forward one
    (row 11, 2.1104), now supported; default model is Heavy. Fair judging: 3° camera margin, one hold =
    one judgment (see docs/rules.md).
+8. **Simple UI (judges' review, 2026-10-09):** "too professional, hard to understand". The main screens
+   use plain words only (no codes, no D/E/A jargon in Practice); two tabs, Practice and Judge; one main
+   button; plain texts live in `web/js/ui/plain.js`. Keep new UI text in that style.
 
 ## How scoring works
 The pretrained pose model gives body joints. **Our own rules** measure angles on those joints and compare
